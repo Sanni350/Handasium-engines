@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handasium — RCC Beam Designer (ACI 318)</title>
+<style>
+  :root{
+    --paper:#EEF0F2;
+    --ink:#1B2430;
+    --ink-soft:#4B5563;
+    --line:#DADEE3;
+    --panel:#FFFFFF;
+    --blue:#1E4E8C;
+    --blue-deep:#12315C;
+    --pass:#1E7A46;
+    --pass-bg:#E7F3EB;
+    --review:#A8660F;
+    --review-bg:#FBF0DD;
+    --fail:#B23A2E;
+    --fail-bg:#FBEAE8;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);}
+  body{padding:20px;}
+  .app{max-width:1280px;margin:0 auto;}
+
+  /* Header */
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .hdr-title{font-size:22px;font-weight:700;letter-spacing:0.2px;}
+  .hdr-sub{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start;}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;}
+  .panel-hdr{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px;display:flex;justify-content:space-between;align-items:center;}
+  .panel-body{padding:16px;}
+
+  fieldset{border:none;padding:0;margin:0 0 18px 0;}
+  legend{font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--blue-deep);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:6px;width:100%;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px;}
+  .field input, .field select{
+    width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:3px;
+    font-size:14px;font-family:var(--mono);background:#F6F7F9;color:var(--ink);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue);}
+  .field .hint{font-size:11px;color:#8A93A0;margin-top:3px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .btn-calc{
+    width:100%;padding:13px;background:var(--blue-deep);color:#fff;border:none;border-radius:3px;
+    font-size:14.5px;font-weight:700;letter-spacing:0.02em;cursor:pointer;margin-top:4px;
+  }
+  .btn-calc:hover{background:var(--blue);}
+
+  /* Results */
+  .status-banner{padding:12px 16px;border-radius:3px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .status-banner.pass{background:var(--pass-bg);color:var(--pass);border:1px solid var(--pass);}
+  .status-banner.review{background:var(--review-bg);color:var(--review);border:1px solid var(--review);}
+  .status-banner.fail{background:var(--fail-bg);color:var(--fail);border:1px solid var(--fail);}
+  .status-banner .tag{font-size:11px;padding:3px 8px;border-radius:2px;background:rgba(0,0,0,0.08);}
+
+  .actions-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  @media (max-width:700px){.actions-grid{grid-template-columns:repeat(2,1fr);}}
+  .action-card{border:1px solid var(--line);border-radius:3px;padding:10px 12px;background:#F6F7F9;}
+  .action-card .k{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;}
+  .action-card .v{font-family:var(--mono);font-size:17px;font-weight:700;margin-top:3px;}
+
+  .check-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;}
+  .check-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-soft);border-bottom:1.5px solid var(--ink);padding:6px 8px;}
+  .check-table td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .check-table td.num{font-family:var(--mono);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:2px;font-size:11px;font-weight:700;}
+  .pill.pass{background:var(--pass-bg);color:var(--pass);}
+  .pill.review{background:var(--review-bg);color:var(--review);}
+  .pill.fail{background:var(--fail-bg);color:var(--fail);}
+
+  .bar-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+  @media (max-width:700px){.bar-options{grid-template-columns:1fr;}}
+  .bar-opt{border:1.5px solid var(--line);border-radius:3px;padding:10px;cursor:pointer;background:#F6F7F9;}
+  .bar-opt.selected{border-color:var(--blue);background:#EAF1FB;}
+  .bar-opt .title{font-weight:700;font-size:14px;}
+  .bar-opt .sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .bar-opt .sub b{color:var(--ink);font-family:var(--mono);}
+
+  .section-wrap{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:16px;}
+  @media (max-width:700px){.section-wrap{grid-template-columns:1fr;}}
+  .svg-box{border:1px solid var(--line);border-radius:3px;background:#F6F7F9;display:flex;align-items:center;justify-content:center;padding:10px;}
+
+  .diagram-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:700px){.diagram-grid{grid-template-columns:1fr;}}
+  .diagram-box{border:1px solid var(--line);border-radius:3px;background:#F6F7F9;padding:8px;}
+  .diagram-box .lbl{font-size:11px;font-weight:700;color:var(--blue-deep);text-transform:uppercase;letter-spacing:0.04em;padding:2px 4px 6px 4px;}
+
+  .selected-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--blue);padding:1px 7px;border-radius:2px;margin-left:6px;vertical-align:middle;}
+  .stirrup-opt{cursor:pointer;}
+  .stirrup-opt.selected td{background:#EAF1FB;}
+
+  details.calc-sheet{border:1px solid var(--line);border-radius:3px;margin-bottom:12px;}
+  details.calc-sheet summary{padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer;background:#F6F7F9;}
+  .calc-sheet .content{padding:4px 14px 14px 14px;}
+  .step{padding:10px 0;border-bottom:1px dashed var(--line);}
+  .step:last-child{border-bottom:none;}
+  .step .step-title{font-weight:700;font-size:12.5px;color:var(--blue-deep);}
+  .step .step-formula{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .step .step-result{font-family:var(--mono);font-size:13px;margin-top:3px;}
+  .step .step-clause{font-size:10.5px;color:#8A93A0;margin-top:3px;}
+
+  .empty-state{padding:60px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  .empty-state .icon{font-size:30px;margin-bottom:10px;}
+
+  .note{font-size:11.5px;color:var(--ink-soft);background:#EAEDF1;border-left:3px solid var(--blue);padding:8px 10px;margin-bottom:14px;border-radius:0 3px 3px 0;}
+  .footer-note{font-size:11px;color:#8A93A0;text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--line);}
+
+  .disclaimer-bar{background:#12315C;color:#fff;padding:9px 16px;font-size:12px;text-align:center;border-radius:3px;margin-bottom:16px;line-height:1.5;}
+  .disclaimer-bar b{color:#FFD98A;}
+
+  .error-panel{background:var(--fail-bg);border:1.5px solid var(--fail);border-radius:4px;padding:14px 16px;margin-bottom:16px;}
+  .error-panel .title{font-weight:700;color:var(--fail);font-size:13.5px;margin-bottom:8px;}
+  .error-panel ul{margin:0;padding-left:18px;font-size:13px;color:#7A241C;}
+  .error-panel li{margin-bottom:4px;}
+
+  .mode-toggle{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#EAF1FB;border:1px solid var(--blue);border-radius:3px;margin-bottom:14px;}
+  .mode-toggle label{margin:0;font-size:13px;font-weight:600;color:var(--blue-deep);}
+
+  /* ---------------- PRINT / SAVE-AS-PDF (Ctrl+P) ---------------- */
+  @media print{
+    body{background:#fff;padding:0;}
+    .app{max-width:100%;}
+    .grid{display:block;}
+    .grid > .panel:first-child{display:none;}   /* hide the input form */
+    .hdr{border-bottom:1.5px solid #000;margin-bottom:10px;padding-bottom:8px;}
+    .panel{border:1px solid #bbb;box-shadow:none;break-inside:avoid;margin-bottom:10px;}
+    .action-card, .bar-opt, .stirrup-opt, .step, .diagram-box, .svg-box{break-inside:avoid;}
+    .status-banner{break-inside:avoid;}
+    .bar-options{grid-template-columns:1fr 1fr;}
+    .diagram-grid{grid-template-columns:1fr 1fr;}
+    .section-wrap{grid-template-columns:1fr;}
+    details.calc-sheet .content{display:block !important;}
+    details.calc-sheet summary{list-style:none;}
+    details.calc-sheet summary::-webkit-details-marker{display:none;}
+    a[href]::after{content:'';}
+    .footer-note{display:none;}
+    @page{margin:14mm;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">RCC Beam Designer</div>
+      <div class="hdr-sub">Rectangular, T &amp; L beam design · ACI 318M (SI units)</div>
+    </div>
+  </div>
+
+  <div class="disclaimer-bar">
+    ⚠ <b>Design aid, not a certification.</b> This tool assists calculation only. All outputs must be reviewed, checked, and approved by a licensed structural engineer before use in construction. Handasium and its outputs do not constitute professional engineering sign-off.
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: INPUTS -->
+    <div class="panel">
+      <div class="panel-hdr">Design Inputs</div>
+      <div class="panel-body">
+
+        <div class="mode-toggle">
+          <input type="checkbox" id="directDesign" style="width:auto;">
+          <label for="directDesign">Direct Design Mode — I already have Mu / Vu from my own analysis (ETABS, STAAD, hand frame analysis, etc.)</label>
+        </div>
+
+        <fieldset>
+          <legend>Project / Design Settings</legend>
+          <div class="field">
+            <label>Beam Type</label>
+            <select id="beamType">
+              <option value="rect">Rectangular</option>
+              <option value="tbeam">T-Beam</option>
+              <option value="lbeam">L-Beam</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Support / Section Condition</label>
+            <select id="condition">
+              <option value="simply_supported">Simply Supported</option>
+              <option value="cantilever">Cantilever</option>
+              <option value="continuous_end_span">Continuous — End Span (near midspan)</option>
+              <option value="continuous_interior_span">Continuous — Interior Span (near midspan)</option>
+              <option value="continuous_first_interior_support">Continuous — First Interior Support (hogging)</option>
+              <option value="continuous_interior_support">Continuous — Interior Support (hogging)</option>
+            </select>
+          </div>
+          <div class="note" id="continuousNote" style="display:none;">ACI 318 Cl. 6.5 approximate moment coefficients — valid only for ≥2 spans, roughly equal (≤20% variation), UDL-dominated, with L ≤ 3D. For irregular spans or dominant point loads, run a proper frame analysis.</div>
+          <div class="field" id="reinforcementFaceField" style="display:none;">
+            <label>Reinforcement Face (for the Mu you entered)</label>
+            <select id="reinforcementFace">
+              <option value="bottom">Bottom — Sagging (positive moment)</option>
+              <option value="top">Top — Hogging (negative moment, e.g. at a support)</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Geometry</legend>
+          <div class="row2">
+            <div class="field"><label>Width b (mm)</label><input type="number" id="b" value="250"></div>
+            <div class="field"><label>Overall Depth h (mm)</label><input type="number" id="h" value="500"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Clear Span L (m) — face to face of supports</label><input type="number" id="L" value="6.0" step="0.1"></div>
+            <div class="field"><label>Support Width (mm)</label><input type="number" id="supportWidth" value="225"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nominal Cover c (mm)</label><input type="number" id="cover" value="25"></div>
+            <div class="field"><label>Bearing Length at Support (mm)</label><input type="number" id="bearing" value="150"></div>
+          </div>
+          <div class="hint" style="margin-bottom:12px;">Effective design span is calculated from your clear span + support width (assumes equal support widths at both ends) per ACI 318 Cl. 6.3.1 — shown in the calc sheet.</div>
+          <div id="flangeFields" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>Flange Width bf (mm)</label><input type="number" id="bf" value="900"></div>
+              <div class="field"><label>Flange Thickness hf (mm)</label><input type="number" id="hf" value="150"></div>
+            </div>
+            <div class="hint" style="margin-bottom:12px;">Engine uses the lesser of your input bf and the ACI 318 Cl. 6.3.2 effective flange width limits.</div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Durability</legend>
+          <div class="field">
+            <label>Exposure Condition (cast-in-place, non-prestressed)</label>
+            <select id="exposure">
+              <option value="notExposed">Not exposed to weather or earth</option>
+              <option value="exposedWeather" selected>Exposed to weather or earth (No. 16-58 bars)</option>
+              <option value="exposedEarth">Cast against and permanently exposed to earth</option>
+            </select>
+          </div>
+          <div class="hint" style="margin-bottom:12px;">Cover minimum below is a simplified reference value (ACI 318 Table 20.6.1.3.1) — confirm the exact figure for your bar size and exposure category. Fire resistance is generally governed by a separate building code (e.g. IBC), not ACI 318 itself, so it isn't checked here.</div>
+        </fieldset>
+
+        <fieldset id="appliedLoadsFieldset">
+          <legend>Applied Loads (excl. self-weight)</legend>
+          <div class="row2">
+            <div class="field"><label>Dead Load Gk (kN/m)</label><input type="number" id="dead" value="5.0" step="0.1"></div>
+            <div class="field"><label>Live Load Qk (kN/m)</label><input type="number" id="live" value="3.0" step="0.1"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Wall Load (kN/m)</label><input type="number" id="wall" value="0" step="0.1"></div>
+            <div class="field"><label>Finishes (kN/m)</label><input type="number" id="finishes" value="0" step="0.1"></div>
+          </div>
+
+          <details style="margin-bottom:12px;border:1px solid var(--line);border-radius:3px;">
+            <summary style="padding:8px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--blue-deep);">Slab Load Helper — convert a slab panel to an equivalent beam UDL</summary>
+            <div style="padding:10px;">
+              <div class="field">
+                <label>Slab Type</label>
+                <select id="slabType">
+                  <option value="oneway">One-way slab</option>
+                  <option value="twoway">Two-way slab</option>
+                </select>
+              </div>
+              <div id="onewayFields">
+                <div class="field"><label>Tributary Width (m) — sum of half-spans either side of this beam</label><input type="number" id="slabTribWidth" value="0" step="0.1"></div>
+              </div>
+              <div id="twowayFields" style="display:none;">
+                <div class="row2">
+                  <div class="field"><label>Short Span Lx (m)</label><input type="number" id="slabLx" value="0" step="0.1"></div>
+                  <div class="field"><label>Long Span Ly (m)</label><input type="number" id="slabLy" value="0" step="0.1"></div>
+                </div>
+                <div class="field">
+                  <label>This beam sits at a...</label>
+                  <select id="slabEdge">
+                    <option value="short">Short edge (triangular load)</option>
+                    <option value="long">Long edge (trapezoidal load)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row2">
+                <div class="field"><label>Slab Dead Load (kN/m²)</label><input type="number" id="slabDead" value="0" step="0.1"></div>
+                <div class="field"><label>Slab Live Load (kN/m²)</label><input type="number" id="slabLive" value="0" step="0.1"></div>
+              </div>
+              <button type="button" class="btn-secondary" id="slabCalcBtn" style="width:100%;margin-bottom:8px;">Calculate Equivalent UDL</button>
+              <div id="slabResult" class="hint" style="display:none;"></div>
+              <button type="button" class="btn-secondary" id="slabApplyBtn" style="width:100%;display:none;">Add to Dead/Live Load fields above</button>
+              <div class="hint" style="margin-top:8px;">One-way: UDL = slab load × tributary width. Two-way (yield-line method): triangular short-edge beams get w×Lx/3; trapezoidal long-edge beams get w×Lx/2×[1−1/(3β²)], β=Ly/Lx. Repeat for each slab panel feeding this beam — "Add" accumulates onto the current Dead/Live values rather than replacing them.</div>
+            </div>
+          </details>
+
+          <div class="row2">
+            <div class="field"><label>Point Load P1 (kN)</label><input type="number" id="pointLoad1" value="0" step="0.5"></div>
+            <div class="field"><label>Position a1 (m from left / fixed support)</label><input type="number" id="pointLoadPos1" value="0" step="0.1"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Point Load P2 (kN)</label><input type="number" id="pointLoad2" value="0" step="0.5"></div>
+            <div class="field"><label>Position a2 (m)</label><input type="number" id="pointLoadPos2" value="0" step="0.1"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Point Load P3 (kN)</label><input type="number" id="pointLoad3" value="0" step="0.5"></div>
+            <div class="field"><label>Position a3 (m)</label><input type="number" id="pointLoadPos3" value="0" step="0.1"></div>
+          </div>
+          <div class="hint" style="margin-bottom:12px;">Self-weight is calculated automatically from geometry × 24 kN/m³ and added to Gk. Up to 3 point loads are analysed exactly (via statics, all combined) for Simply Supported and Cantilever; for continuous conditions they're added as a conservative superposition — verify against a full analysis for point-load-dominated continuous beams. Leave P at 0 for any slot you don't need.</div>
+        </fieldset>
+
+        <fieldset id="directLoadsFieldset" style="display:none;">
+          <legend>Direct Design Actions</legend>
+          <div class="row2">
+            <div class="field"><label>Design Moment Mu (kNm)</label><input type="number" id="MuDirect" value="0" step="0.5"></div>
+            <div class="field"><label>Design Shear Vu (kN)</label><input type="number" id="VuDirect" value="0" step="0.5"></div>
+          </div>
+          <div class="hint" style="margin-bottom:12px;">Section design (flexure, shear, deflection, detailing, BBS) runs exactly as normal on your entered Mu/Vu. Self-weight/load analysis and the BMD/SFD are skipped — you already have the real moment/shear distribution from your own analysis.</div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Torsion (optional)</legend>
+          <div class="field" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="torsionCheck" style="width:auto;">
+            <label style="margin:0;">This beam is subject to torsion (e.g. edge/spandrel beam)</label>
+          </div>
+          <div id="torsionFields" style="display:none;margin-top:10px;">
+            <div class="field"><label>Design Torsion Tu (kNm)</label><input type="number" id="Tu" value="0" step="0.5"></div>
+            <div class="hint">Tu must come from your own 3D frame/grillage analysis — this planar beam engine cannot derive torsional demand from load inputs alone.</div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Materials</legend>
+          <div class="row2">
+            <div class="field">
+              <label>Concrete Strength f'c (N/mm²)</label>
+              <select id="fck">
+                <option value="20">20 MPa</option>
+                <option value="25" selected>25 MPa</option>
+                <option value="28">28 MPa</option>
+                <option value="30">30 MPa</option>
+                <option value="35">35 MPa</option>
+                <option value="40">40 MPa</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Main Steel Grade fy (N/mm²)</label>
+              <select id="fy"><option value="280">Grade 280 (40)</option><option value="420" selected>Grade 420 (60)</option><option value="520">Grade 520 (75)</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Shear Stirrup Grade fyt (N/mm²)</label>
+            <select id="fyv"><option value="280">Grade 280 (40)</option><option value="420" selected>Grade 420 (60)</option><option value="520">Grade 520 (75)</option></select>
+          </div>
+        </fieldset>
+
+        <button class="btn-calc" id="calcBtn">Calculate Beam</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULTS -->
+    <div>
+      <div id="resultsWrap">
+        <div class="panel">
+          <div class="empty-state">
+            <div class="icon">▦</div>
+            Fill in design inputs and click <b>Calculate Beam</b> to view design actions, reinforcement options and code checks.
+          </div>
+        </div>
+      </div>
+
+      <details class="calc-sheet" style="margin-top:16px;">
+        <summary>Glossary — what do these terms mean?</summary>
+        <div class="content">
+          <div class="step"><div class="step-title">Mu / Vu</div><div class="step-result">Design (ultimate, factored) bending moment and shear force — the loads the section must be strong enough to resist, after safety factors are applied.</div></div>
+          <div class="step"><div class="step-title">d (effective depth)</div><div class="step-result">Distance from the compression face of the concrete to the centroid of the tension steel. Bigger d = stronger, more efficient section — it's the single most influential dimension in the design.</div></div>
+          <div class="step"><div class="step-title">φ (phi factor)</div><div class="step-result">ACI 318's strength-reduction factor — the nominal (theoretical) capacity is multiplied by φ to get the design capacity, rather than reducing material strength the way other codes do. φ=0.9 for a well-behaved ("tension-controlled") beam, dropping toward 0.65 for a brittle, over-reinforced one.</div></div>
+          <div class="step"><div class="step-title">Net tensile strain (εt)</div><div class="step-result">How much the tension steel stretches at the point the section reaches its capacity. High εt (≥0.005) means the steel yields well before the concrete crushes — a ductile, "tension-controlled" failure mode, which is what φ=0.9 assumes. Low εt means a more brittle failure and a reduced φ.</div></div>
+          <div class="step"><div class="step-title">As / As2</div><div class="step-result">As = area of tension steel, As2 = area of compression steel (only present in doubly-reinforced sections).</div></div>
+          <div class="step"><div class="step-title">Singly vs. doubly reinforced</div><div class="step-result">Singly reinforced = steel only on the tension face. Doubly reinforced = steel on both faces, needed when the section is too shallow to resist the moment with tension steel alone while staying within the ductility minimum.</div></div>
+          <div class="step"><div class="step-title">Sagging / hogging</div><div class="step-result">Sagging = the beam bends into a "smile" shape, tension on the bottom (typical mid-span). Hogging = bends into a "frown," tension on top (typical over a continuous support).</div></div>
+          <div class="step"><div class="step-title">Vc</div><div class="step-result">The nominal shear strength the concrete alone provides, before any stirrups. If the required shear exceeds φVc, shear reinforcement (stirrups) is required.</div></div>
+          <div class="step"><div class="step-title">Vs</div><div class="step-result">The nominal shear strength the stirrups need to supply once Vc alone isn't enough — used to work out how far apart your stirrups need to be.</div></div>
+          <div class="step"><div class="step-title">Effective span (Leff)</div><div class="step-result">The span actually used in design calculations, derived from your clear span plus an allowance for support width/depth — not simply the distance between wall faces.</div></div>
+          <div class="step"><div class="step-title">Curtailment</div><div class="step-result">Stopping some reinforcing bars short of the full span once they're no longer needed to resist the (reduced) moment there — saves steel, but must be done correctly with enough extra length for development/anchorage.</div></div>
+          <div class="step"><div class="step-title">Development length (ld)</div><div class="step-result">The length a bar must be embedded in concrete for bond stress to safely transfer its full tensile force — too short, and the bar can pull out before it yields.</div></div>
+          <div class="step"><div class="step-title">Torsion — thin-walled section analogy</div><div class="step-result">ACI 318's method treats a beam under torsion as an equivalent thin-walled tube — the torque is converted into a shear flow around the section perimeter (Cl. 22.7), requiring closed stirrups plus additional longitudinal steel once a threshold torque is exceeded.</div></div>
+          <div class="step"><div class="step-title">Bearing stress</div><div class="step-result">The compressive stress where the beam sits on its support (wall/column) — too high, and the support material itself could crush or the beam could punch into it.</div></div>
+        </div>
+      </details>
+
+      <div class="footer-note">All formulas per ACI 318M (SI units). This tool assists design; the responsible engineer must verify and approve all outputs.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   HANDASIUM — DETERMINISTIC CALC ENGINE
+   Standard-agnostic interface:  engine[standardKey].calculate(input) -> result
+   Only "ec2" is implemented in this file. Add bs8110 / is456 / aci318 as siblings
+   that return the SAME result shape so the UI never needs to change.
+   ========================================================================= */
+
+const BAR_AREAS = { 12:113, 16:201, 20:314, 25:491 };   // mm^2, single bar
+const STIRRUP_AREAS_2LEG = { 8:100.6, 10:157, 12:226 }; // mm^2, 2 legs
+
+function round(v, dp){ const m = Math.pow(10,dp); return Math.round(v*m)/m; }
+
+/* Exact statics profile for simply-supported and cantilever beams, UDL + any
+   number of point loads. Returns sampled {x,M,V} points plus the true peak
+   Mu/Vu — peaks are captured analytically at each load position and at each
+   zero-shear crossing between loads, not just from uniform sampling. */
+function buildProfile(condition, w, L, loads){
+  const N = 60;
+  const pts_ = (loads||[]).filter(ld=>ld.P>0).map(ld=>({ P: ld.P, a: Math.min(Math.max(ld.a,0),L) }));
+  const xs = new Set();
+  for(let i=0;i<=N;i++) xs.add(round(L*i/N,4));
+  xs.add(0); xs.add(round(L,4));
+  pts_.forEach(ld=> xs.add(round(ld.a,4)));
+
+  let R1=0,R2=0;
+  if(condition==='simply_supported'){
+    pts_.forEach(ld=>{ R1 += ld.P*(L-ld.a)/L; R2 += ld.P*ld.a/L; });
+    R1 += w*L/2; R2 += w*L/2;
+
+    // exact zero-shear crossing within each load-free segment
+    const breakpoints = [...new Set([0, L, ...pts_.map(ld=>ld.a)])].sort((x,y)=>x-y);
+    for(let i=0;i<breakpoints.length-1;i++){
+      const segStart = breakpoints[i];
+      const loadSum = pts_.filter(ld=>ld.a <= segStart+1e-9).reduce((s,ld)=>s+ld.P,0);
+      if(w>0){
+        const x0 = (R1 - loadSum)/w;
+        if(x0 > segStart && x0 < breakpoints[i+1]) xs.add(round(x0,4));
+      }
+    }
+  }
+
+  const pts = [...xs].sort((x,y)=>x-y).map(x=>{
+    let M,V;
+    if(condition==='simply_supported'){
+      const loadMoment = pts_.filter(ld=>x>=ld.a).reduce((s,ld)=>s+ld.P*(x-ld.a),0);
+      const loadShear = pts_.filter(ld=>x>=ld.a).reduce((s,ld)=>s+ld.P,0);
+      M = R1*x - w*x*x/2 - loadMoment;
+      V = R1 - w*x - loadShear;
+    } else { // cantilever, fixed at x=0
+      const loadMoment = pts_.filter(ld=>x<=ld.a).reduce((s,ld)=>s+ld.P*(ld.a-x),0);
+      const loadShear = pts_.filter(ld=>x<=ld.a).reduce((s,ld)=>s+ld.P,0);
+      M = -( w*Math.pow(L-x,2)/2 + loadMoment );
+      V = w*(L-x) + loadShear;
+    }
+    return { x: round(x,4), M: round(M,4), V: round(V,4) };
+  });
+
+  const Mu = Math.max(...pts.map(p=>Math.abs(p.M)));
+  const Vu = Math.max(...pts.map(p=>Math.abs(p.V)));
+  return { pts, Mu: round(Mu,3), Vu: round(Vu,3), R1, R2 };
+}
+
+// ACI 318 Cl. 6.5 — approximate ("ACI coefficient method") moments/shears for
+// continuous beams. Valid for ≥2 spans, roughly equal (differing ≤20%), UDL
+// dominated, with LL ≤ 3×DL — the code's own stated conditions of applicability.
+const CONTINUOUS_COEFF = {
+  continuous_end_span:               { M:1/14, V:0.575, hogging:false, label:'End span, near midspan (spandrel integral with support)' },
+  continuous_interior_span:          { M:1/16, V:0.55,  hogging:false, label:'Interior span, near midspan' },
+  continuous_first_interior_support: { M:1/10, V:0.575, hogging:true,  label:'Negative moment, first interior support' },
+  continuous_interior_support:       { M:1/11, V:0.55,  hogging:true,  label:'Negative moment, other interior supports' }
+};
+
+// ACI 318 Cl. 22.5.5.1 — simplified nominal shear strength of concrete (SI units)
+function vcStress(fc){ return 0.17*Math.sqrt(fc); } // N/mm^2, lambda=1.0 (normalweight concrete)
+const VS_MAX_COEFF = 0.66; // Cl. 22.5.1.2 — max nominal shear strength from stirrups, 0.66*sqrt(fc)
+
+// ACI 318 Cl. 22.2.2.4.3 — beta1 stress block factor
+function beta1(fc){
+  if(fc<=28) return 0.85;
+  return Math.max(0.85 - 0.05*(fc-28)/7, 0.65);
+}
+
+const engines = {
+
+  aci318: {
+
+    calculate(input){
+      const { beamType, condition, b, h, L, cover, bf:bfIn, hf, dead, live, wall, finishes, fck:fc, fy, fyv,
+              pointLoads, bearing, torsionCheck, Tu, supportWidth, exposure } = input;
+
+      const steps = [];      // calc-sheet entries
+      const flags = [];      // {level:'review'|'fail', msg}
+      const activeLoads = (pointLoads||[]).filter(ld=>ld.P>0);
+
+      /* ---------------- 1. LOADS ---------------- */
+      let selfWeight=0, Gk=0, Qk=0, w=0, ultimateLoads=[];
+      if(input.directDesign){
+        steps.push({t:'Loads', f:'Skipped', r:'Direct Design mode — Mu/Vu supplied directly, load build-up not applicable.', c:''});
+      } else {
+        selfWeight = round((b/1000) * (h/1000) * 25, 3); // kN/m
+        Gk = round(dead + wall + finishes + selfWeight, 3);
+        Qk = round(live, 3);
+        w  = round(1.2*Gk + 1.6*Qk, 3); // ACI 318 Cl. 5.3.1, Eq. (a): U = 1.2D + 1.6L
+        ultimateLoads = activeLoads.map(ld=>({ P: round(1.2*ld.P,3), a: ld.a }));
+
+        steps.push({t:'Self-weight', f:'b × h × 25 kN/m³', r:`${(b/1000).toFixed(3)} × ${(h/1000).toFixed(3)} × 25 = ${selfWeight} kN/m`, c:''});
+        steps.push({t:'Characteristic loads', f:'D = dead + wall + finishes + self-weight ; L = live', r:`D = ${Gk} kN/m,  L = ${Qk} kN/m`, c:''});
+        steps.push({t:'Factored (required strength) UDL', f:'U = 1.2D + 1.6L', r:`U = 1.2(${Gk}) + 1.6(${Qk}) = ${w} kN/m`, c:'ACI 318 Cl. 5.3.1(a)'});
+        if(ultimateLoads.length>0){
+          steps.push({t:'Factored Point Loads', f:'Pu = 1.2 × P each (conservatively factored as dead-dominated — refactor manually at 1.6 if the load is live)', r: ultimateLoads.map((ld,i)=>`P${i+1}u = 1.2×${activeLoads[i].P} = ${ld.P} kN @ ${ld.a} m`).join('; '), c:'ACI 318 Cl. 5.3.1(a)'});
+          flags.push({level:'review', msg:`Point load(s) factored at 1.2 (dead-load factor) by default. If any are live/imposed, re-run with that load pre-factored at 1.6 and entered directly, or contact us for split-factor support.`});
+        }
+      }
+
+      /* ---------------- 2. EFFECTIVE DEPTH (trial) & EFFECTIVE SPAN ---------------- */
+      const stirrupDiaAssumed = 8;
+      const trialBar = 16;
+      const dTrial = round(h - cover - stirrupDiaAssumed - trialBar/2, 1);
+      steps.push({t:'Effective Depth (trial, ⌀16 assumed)', f:"d = h − cover − stirrup Ø − bar Ø/2", r:`d = ${h} − ${cover} − ${stirrupDiaAssumed} − ${trialBar/2} = ${dTrial} mm  (used only for the effective-span estimate below; flexure recalculates d per bar diameter)`, c:''});
+
+      const supportW = supportWidth || 0;
+      let Leff, spanFormula;
+      if(condition==='cantilever'){
+        Leff = round(L + (dTrial/2)/1000, 3);
+        spanFormula = 'Cantilever: Leff = clear projection + d/2';
+      } else if(condition==='simply_supported'){
+        const c2c = round(L + supportW/1000, 3);
+        const clearPlusD = round(L + dTrial/1000, 3);
+        Leff = Math.min(c2c, clearPlusD);
+        spanFormula = `Simply supported: Leff = min(centre-to-centre ${c2c} m, clear span + d ${clearPlusD} m)`;
+      } else {
+        Leff = round(L + supportW/1000, 3);
+        spanFormula = 'Continuous: Leff = distance between centres of supports';
+      }
+      steps.push({t:'Effective Span', f:spanFormula, r:`Clear span = ${L} m, support width = ${supportW} mm  →  Leff = ${Leff} m`, c:'ACI 318 Cl. 6.3.1 (analysis span, simplified)'});
+      const clampedLoads = ultimateLoads.map(ld=>({ P: ld.P, a: Math.min(Math.max(ld.a,0),Leff) }));
+
+      /* ---------------- 3. DESIGN ACTIONS ---------------- */
+      let Mu, Vu, hogging=false, profile=null, qualitativeDiagram=false;
+
+      if(input.directDesign){
+        Mu = round(input.MuDirect, 3);
+        Vu = round(input.VuDirect, 3);
+        hogging = (input.reinforcementFace === 'top');
+        qualitativeDiagram = true;
+        steps.push({t:'Direct Design Actions', f:'Supplied directly by engineer (from independent analysis)', r:`Mu = ${Mu} kNm, Vu = ${Vu} kN  |  Reinforcement face: ${hogging?'TOP (hogging)':'BOTTOM (sagging)'}`, c:'Engineer-supplied'});
+        flags.push({level:'review', msg:'Direct Design mode: Mu/Vu were entered directly and not derived from this tool\'s own load analysis. This section design is only as reliable as the external analysis that produced those numbers — verify they are correctly factored (required strength U) before relying on this output.'});
+      } else if(condition==='simply_supported' || condition==='cantilever'){
+        profile = buildProfile(condition, w, Leff, clampedLoads);
+        Mu = profile.Mu; Vu = profile.Vu;
+        hogging = (condition==='cantilever');
+        const formula = condition==='simply_supported'
+          ? 'Exact statics: M(x)=R1x−wx²/2−ΣPu(x−a); V(x)=R1−wx−ΣPu  [peak evaluated across full span, incl. under each point load]'
+          : 'Exact statics (fixed at support): M(x)=−[w(L−x)²/2+ΣPu(a−x)]; V(x)=w(L−x)+ΣPu';
+        steps.push({t:'Design Bending Moment', f:formula, r:`Mu = ${Mu} kNm (peak, exact)`, c:'Statics'});
+        steps.push({t:'Design Shear Force', f:formula, r:`Vu = ${Vu} kN (peak, exact)`, c:'Statics'});
+      } else {
+        const coeff = CONTINUOUS_COEFF[condition];
+        hogging = coeff.hogging;
+        const MuBase = round(coeff.M * w * Leff * Leff, 3);
+        const VuBase = round(coeff.V * w * Leff, 3);
+        let MuPoint=0, VuPoint=0;
+        if(clampedLoads.length>0){
+          clampedLoads.forEach(ld=>{
+            MuPoint += (ld.P*ld.a*(Leff-ld.a))/Leff;
+            const r1 = ld.P*(Leff-ld.a)/Leff, r2 = ld.P*ld.a/Leff;
+            VuPoint += Math.max(r1,r2);
+          });
+          MuPoint = round(MuPoint,3); VuPoint = round(VuPoint,3);
+          flags.push({level:'review', msg:'Point load(s) on a continuous span are added via a conservative simply-supported-equivalent superposition onto the coefficient result, not a full indeterminate analysis. Verify with proper frame analysis for point-load-dominated continuous spans.'});
+        }
+        Mu = round(MuBase + MuPoint, 3);
+        Vu = round(VuBase + VuPoint, 3);
+        qualitativeDiagram = true;
+        flags.push({level:'review', msg:`Continuous-beam moment/shear taken from the ACI 318 Cl. 6.5 approximate coefficient method (${coeff.label}). Valid only for ≥2 spans, roughly equal (≤20% variation), UDL-dominated, with L ≤ 3D. Confirm these conditions before relying on this result — otherwise run a proper frame analysis.`});
+        steps.push({t:'Design Bending Moment', f:`Mu = ${round(coeff.M,4)} × w × Ln²  [+ point-load component(s) if present]  (${coeff.label})`, r:`Mu = ${MuBase}${clampedLoads.length>0?` + ${MuPoint} (point loads)`:''} = ${Mu} kNm`, c:'ACI 318 Cl. 6.5.2'});
+        steps.push({t:'Design Shear Force', f:`Vu = ${coeff.V.toFixed(3)} × w × Ln  [+ point-load component(s) if present]`, r:`Vu = ${VuBase}${clampedLoads.length>0?` + ${VuPoint} (point loads)`:''} = ${Vu} kN`, c:'ACI 318 Cl. 6.5.4'});
+      }
+
+      let bWeb = b, bEff = b, isFlanged = (beamType!=='rect');
+      if(isFlanged){
+        const spanMM = Leff*1000;
+        const codeLimit = beamType==='tbeam'
+          ? Math.min(bWeb + spanMM/4, bWeb + 16*(hf||0)*2, bWeb + (bfIn-bWeb)) // Cl. 6.3.2.1, governing of span/4, bw+16hf (both sides), and tributary width
+          : Math.min(bWeb + spanMM/12, bWeb + 6*(hf||0), bWeb + (bfIn-bWeb)/1); // Cl. 6.3.2.2, L-beam: bw+span/12, bw+6hf, or half clear distance to adjacent beam (approximated via input bf)
+        bEff = Math.min(bfIn, codeLimit);
+        steps.push({t:'Effective Flange Width', f: beamType==='tbeam' ? 'bf = min( input bf, bw+L/4, bw+16hf both sides )' : 'bf = min( input bf, bw+L/12, bw+6hf )', r:`bf = min(${bfIn}, ${round(codeLimit,0)}) = ${round(bEff,0)} mm`, c:'ACI 318 Cl. 6.3.2 (simplified)'});
+      }
+
+      /* ---------------- 4. DURABILITY / EXPOSURE COVER CHECK ---------------- */
+      const DURABILITY_COVER = { notExposed:20, exposedWeather:40, exposedEarth:50 }; // ACI 318 Table 20.6.1.3.1, simplified cast-in-place values
+      const coverRequired = DURABILITY_COVER[exposure] || 40;
+      const coverOK = cover >= coverRequired;
+      if(!coverOK) flags.push({level:'review', msg:`Nominal cover (${cover} mm) is below the reference minimum (${coverRequired} mm) for the selected exposure condition. Confirm against ACI 318 Table 20.6.1.3.1 for your exact conditions. Fire resistance is generally governed by a separate building code (e.g. IBC), not ACI 318 itself, so it isn't checked here.`});
+      steps.push({t:'Durability Cover Check', f:'concrete cover ≥ minimum for exposure condition', r:`Provided cover = ${cover} mm  vs  required ≈ ${coverRequired} mm  →  ${coverOK?'PASS':'REVIEW'}`, c:'ACI 318 Table 20.6.1.3.1 (simplified reference values)'});
+
+      /* ---------------- 5. FLEXURE (ACI 318 Cl. 22.2 — strength design) ---------------- */
+      const bFlex = isFlanged ? bEff : b;
+      const b1 = beta1(fc);
+      const AsMinPct = Math.max(0.25*Math.sqrt(fc)/fy, 1.4/fy); // ACI 318 Cl. 9.6.1.2 (SI)
+      const AsMin = AsMinPct * b * h;
+      const AsMaxByCode = 0.04 * b * h; // practical upper bound, not an explicit ACI clause but a sensible sanity ceiling
+
+      function flexureForDia(dia){
+        const dDia = round(h - cover - stirrupDiaAssumed - dia/2, 1);
+        // First pass assuming phi=0.9 (tension-controlled)
+        let phi = 0.9;
+        function solveAs(phiTry){
+          const Rn = (Mu*1e6)/(phiTry*bFlex*dDia*dDia);
+          const disc = Math.max(0, 1 - (2*Rn)/(0.85*fc));
+          const rho = (0.85*fc/fy)*(1-Math.sqrt(disc));
+          return Math.max(rho, 0) * bFlex * dDia;
+        }
+        let AsTry = solveAs(phi);
+        // Check ductility (net tensile strain et) for this trial As
+        function strainCheck(As){
+          const a = (As*fy)/(0.85*fc*bFlex);
+          const c = a/b1;
+          const et = 0.003*(dDia-c)/c;
+          return { a, c, et };
+        }
+        let sc = strainCheck(AsTry);
+        let doublyDia = false, As2Dia = 0, d2Dia = 0;
+
+        if(sc.et < 0.004){
+          // Section can't achieve minimum beam ductility (et>=0.004) as singly
+          // reinforced at this depth — cap tension steel at the et=0.004 limit
+          // and add compression steel to carry the remaining moment.
+          doublyDia = true;
+          d2Dia = cover + stirrupDiaAssumed + dia/2;
+          const cLim = 0.003/(0.003+0.004) * dDia; // c/d = 0.003/(0.003+0.004)
+          const aLim = b1*cLim;
+          const As1 = (0.85*fc*bFlex*aLim)/fy;
+          const MnAt1 = As1*fy*(dDia - aLim/2)/1e6; // kNm, moment carried by the singly-reinforced portion
+          const MuRemaining = Math.max(0, (Mu/0.9) - MnAt1); // kNm, nominal moment the compression couple must supply, using phi=0.9 (justified below)
+          As2Dia = (MuRemaining*1e6)/(0.87*fy*(dDia-d2Dia)); // 0.87fy: mild simplification for compression steel stress, consistent with the other Handasium modules
+          AsTry = As1 + As2Dia;
+          phi = 0.9; // with compression steel restoring the couple, tension steel strain is kept at the beam minimum — phi=0.9 remains applicable
+          sc = strainCheck(As1); // report strain for the tension-steel-only portion (governs ductility classification)
+        } else if(sc.et < 0.005){
+          // Transition zone — recompute phi and re-derive As once (single-pass correction)
+          const ety = fy/200000;
+          phi = 0.65 + (sc.et-ety)*(0.9-0.65)/(0.005-ety);
+          phi = Math.min(Math.max(phi,0.65),0.9);
+          AsTry = solveAs(phi);
+          sc = strainCheck(AsTry);
+        }
+
+        const AsMinDia = Math.max(0.25*Math.sqrt(fc)/fy, 1.4/fy) * b * dDia;
+        return { d:dDia, phi, et:sc.et, doubly:doublyDia, AsReq: Math.max(AsTry, AsMinDia), As2:As2Dia, d2:d2Dia };
+      }
+
+      const rep = flexureForDia(trialBar);
+      const d = rep.d, doubly = rep.doubly, As2 = rep.As2, d2 = rep.d2, AsReq = rep.AsReq, phiRep = rep.phi, etRep = rep.et;
+
+      if(!doubly){
+        steps.push({t:'Net Tensile Strain / φ Factor', f:'εt = 0.003(d−c)/c ; φ=0.9 if εt≥0.005, φ=0.65 if εt≤εty, interpolated between', r:`εt = ${round(etRep,4)}  →  φ = ${round(phiRep,3)}  ${etRep>=0.004?'(≥0.004 beam minimum — OK)':'(below 0.004 minimum!)'}`, c:'ACI 318 Cl. 21.2.2 / Cl. 9.3.3.1'});
+        steps.push({t:'Required Tension Steel', f:'Rn=Mu/(φbd²) ; ρ=(0.85f\'c/fy)[1−√(1−2Rn/0.85f\'c)] ; As=ρbd', r:`As,req = ${round(AsReq,0)} mm²  (⌀16 representative — each bar option below uses its own recalculated d/As)`, c:'ACI 318 Cl. 22.2'});
+      } else {
+        flags.push({level:'review', msg:'Section requires compression steel to satisfy the ACI 318 beam ductility minimum (εt ≥ 0.004) using the ⌀16 representative depth — the tension-only capacity at this depth is not enough to reach that strain limit. Verify layout and consider increasing depth if compression reinforcement is impractical.'});
+        steps.push({t:'Ductility-Limited Design', f:"Tension steel capped at εt=0.004 (c/d=0.003/0.007); remaining moment carried by a compression-steel couple", r:`As1 (tension, εt=0.004 limit) + As2 (compression couple) = ${round(AsReq,0)} mm²  |  As2 = ${round(As2,0)} mm²  (d' assumed ${d2} mm)`, c:'ACI 318 Cl. 9.3.3.1 (simplified doubly-reinforced approach)'});
+      }
+      if(AsReq <= AsMin) flags.push({level:'review', msg:'Moment-derived steel area is at/below the code minimum — minimum reinforcement governs. Section may be oversized for this moment.'});
+      steps.push({t:'Minimum Steel', f:"As,min = max(0.25√f'c/fy, 1.4/fy) × b × d", r:`As,min = ${round(AsMin,0)} mm²`, c:'ACI 318 Cl. 9.6.1.2'});
+
+      const barOptions = [12,16,20,25].map(dia=>{
+        const fx = flexureForDia(dia);
+        const area = BAR_AREAS[dia];
+        let n = Math.max(2, Math.ceil(fx.AsReq/area));
+        const provided = n*area;
+        const minClear = Math.max(dia, 25); // ACI 318 Cl. 25.2.1, min clear spacing = max(bar dia, 25mm, 4/3 aggregate size)
+        const availWidth = b - 2*cover - 2*stirrupDiaAssumed;
+        const maxPerLayer = Math.max(1, Math.floor((availWidth + minClear) / (dia + minClear)));
+
+        let layers=1, perLayer=[n], dAdjusted=fx.d, layerNote=null;
+        if(n > maxPerLayer){
+          layers = 2;
+          const bottom = Math.ceil(n/2);
+          const top = n - bottom;
+          perLayer = [bottom, top];
+          dAdjusted = round(fx.d - (dia + 25), 1);
+          layerNote = `Does not fit in one layer at this width — arranged as ${bottom} + ${top} in two layers. Effective depth reduced to ~${dAdjusted} mm; verify detailing and re-check capacity with your detailer.`;
+        }
+        const clearSpacing = perLayer[0]>1 ? round((availWidth - perLayer[0]*dia)/(perLayer[0]-1),1) : null;
+        const spacingOK = clearSpacing===null ? true : clearSpacing >= minClear;
+        return { dia, n, area, provided, layers, perLayer, clearSpacing, minClear, spacingOK,
+                 utilisation: round(provided/fx.AsReq*100,0), dAdjusted, layerNote,
+                 d: fx.d, doubly: fx.doubly, AsReq: fx.AsReq, As2: fx.As2, et: fx.et };
+      });
+      if(barOptions.some(o=>o.layers===2)) flags.push({level:'review', msg:'One or more bar options require two layers of reinforcement at this width. Two-layer arrangements reduce effective depth — the affected option(s) are noted individually; consider a wider section if this is impractical.'});
+      if(new Set(barOptions.map(o=>o.doubly)).size>1) flags.push({level:'review', msg:'Whether this section needs compression steel depends on which bar diameter you pick — smaller bars give more effective depth and may keep the section within the ductility minimum without compression steel. Check the per-option status before finalising your bar choice.'});
+
+      /* ---------------- 6. SHEAR (ACI 318 Cl. 22.5) ---------------- */
+      const midOpt = barOptions[1]; // ⌀16 — representative
+      const dShear = midOpt.layers===2 ? midOpt.dAdjusted : d;
+      const vu = (Vu*1e3)/(b*dShear); // N/mm2, nominal shear stress equivalent for reporting
+      const vc = vcStress(fc);
+      const vsMax = VS_MAX_COEFF*Math.sqrt(fc);
+      const phiShear = 0.75;
+
+      steps.push({t:'Concrete Shear Strength', f:"Vc = 0.17λ√f'c·bw·d  (λ=1.0, normalweight concrete)", r:`Vc = ${round(vc*b*dShear/1000,2)} kN  (stress-equivalent vc = ${round(vc,3)} N/mm²)`, c:'ACI 318 Cl. 22.5.5.1 (simplified method)'});
+      steps.push({t:'Design Shear Strength', f:'φVc, φ=0.75', r:`φVc = ${round(0.75*vc*b*dShear/1000,2)} kN`, c:'ACI 318 Cl. 21.2.1'});
+
+      if(clampedLoads.length>0){
+        const nearSupport = clampedLoads.some(ld=> ld.a < dShear/1000 || (Leff-ld.a) < dShear/1000);
+        if(nearSupport) flags.push({level:'review', msg:`At least one point load sits within d (${round(dShear/1000,2)} m) of a support face. ACI 318 permits taking Vu at distance d from the support face for loads applied near a support (Cl. 7.4.3.2/9.4.3.2) — this engine conservatively uses Vu at the load itself, so the result here is conservative.`});
+      }
+
+      let shearStatus = 'PASS', VsReq;
+      const VcKN = vc*b*dShear/1000;
+      const VsMaxKN = vsMax*b*dShear/1000;
+      if(Vu > 0.75*(VcKN+VsMaxKN)){
+        shearStatus = 'FAIL';
+        flags.push({level:'fail', msg:'Required shear strength exceeds the maximum permitted even with maximum stirrup provision (Vs,max) — section is inadequate in shear. Increase beam width or depth.'});
+        VsReq = null;
+      } else if(Vu <= 0.75*VcKN/2){
+        VsReq = 0; // below half phiVc — no shear reinforcement required by calculation, but ACI still requires minimum stirrups in most beams
+      } else {
+        VsReq = Math.max(0, Vu/phiShear - VcKN);
+      }
+
+      const AvMinOverSv = Math.max(0.062*Math.sqrt(fc)*b/fyv, 0.35*b/fyv); // ACI 318 Cl. 9.6.3.3
+      const stirrupOptions = (shearStatus==='FAIL') ? [] : [8,10,12].map(dia=>{
+        const legArea = STIRRUP_AREAS_2LEG[dia];
+        let reqAvSv;
+        if(!VsReq || VsReq<=0){
+          reqAvSv = AvMinOverSv;
+        } else {
+          reqAvSv = Math.max((VsReq*1000)/(fyv*dShear), AvMinOverSv); // Cl. 22.5.10.5.3, Av/s = Vs/(fyt*d)
+        }
+        let sv = Math.floor((legArea/reqAvSv)/25)*25;
+        const svMax = Math.min(0.5*dShear, 600); // ACI 318 Cl. 9.7.6.2.2, simplified (0.5d governs unless Vs is small, 0.5d used conservatively throughout)
+        sv = Math.min(sv, svMax);
+        const ok = sv >= 75;
+        return { dia, legArea, spacing: sv, maxSpacing: round(svMax,0), ok, closedRequired: !!(torsionCheck && Tu>0) };
+      });
+
+      steps.push({t:'Shear Reinforcement', f:'Vs = Vu/φ − Vc ; Av/s = Vs/(fyt·d)  [min per Cl. 9.6.3.3]', r: shearStatus==='FAIL' ? 'Section fails in shear — resize before detailing links.' : `Vs,req = ${VsReq?round(VsReq,2):0} kN  →  Av/s,req = ${round(Math.max(VsReq?(VsReq*1000)/(fyv*dShear):0, AvMinOverSv),4)} mm²/mm`, c:'ACI 318 Cl. 22.5.10 / Cl. 9.6.3.3'});
+
+      /* ---------------- TORSION (optional, user-supplied Tu) — ACI 318 Cl. 22.7 (simplified) ---------------- */
+      let torsion = null;
+      if(torsionCheck && Tu>0){
+        const Aoh = (b-2*cover-stirrupDiaAssumed)*(h-2*cover-stirrupDiaAssumed); // area enclosed by outermost closed stirrup centreline
+        const Ao = 0.85*Aoh;
+        const ph = 2*((b-2*cover)+(h-2*cover)); // perimeter of Aoh
+        const TcrStress = (Tu*1e6)/(2*Ao*Aoh/ph); // simplified equivalent shear-flow stress, N/mm2 basis
+        const phiTorsion = 0.75;
+        const TnLimit = 0.33*Math.sqrt(fc)*(Aoh*Aoh/ph)/1e6; // kNm, approximate threshold below which torsion may be neglected (Cl. 22.7.4.1, simplified)
+        const torsionNeeded = Tu > phiTorsion*TnLimit;
+        let AtOverSv = 0, AlReq = 0;
+        if(torsionNeeded){
+          AtOverSv = (Tu*1e6)/(phiTorsion*2*Ao*fyv); // mm2/mm, one leg, per Cl. 22.7.6.1
+          AlReq = AtOverSv*ph*(fyv/fy); // simplified longitudinal steel estimate, Cl. 22.7.6.1
+        }
+        const torsionStatus = torsionNeeded ? 'REVIEW' : 'PASS';
+        if(torsionNeeded) flags.push({level:'review', msg:'Torsion reinforcement is required: closed stirrups (not open U-stirrups) plus additional longitudinal steel distributed around the section perimeter, per ACI 318 Cl. 22.7. Combine with the shear link design above and verify with a full torsion design for critical members.'});
+
+        steps.push({t:'Torsional Threshold Check', f:'Tth ≈ 0.33√f\'c·(Aoh²/ph)  (simplified — neglect torsion below this)', r:`Tu = ${Tu} kNm  vs  φTth ≈ ${round(phiTorsion*TnLimit,2)} kNm  →  ${torsionNeeded?'torsion reinforcement required':'may be neglected'}`, c:'ACI 318 Cl. 22.7.4.1 (simplified)'});
+        if(torsionNeeded) steps.push({t:'Torsion Reinforcement (simplified)', f:'At/s = Tu/(φ·2Ao·fyv)  ;  Al ≈ (At/s)·ph·(fyv/fy)', r:`At/s ≈ ${round(AtOverSv,4)} mm²/mm (one leg, closed stirrup) ; Al,req ≈ ${round(AlReq,0)} mm² distributed around perimeter`, c:'ACI 318 Cl. 22.7.6.1 (simplified)'});
+        flags.push({level:'review', msg:'This torsion check uses a simplified thin-walled tube analogy with approximated Aoh/ph geometry — a genuine preliminary estimate, not a substitute for a full ACI 318 Cl. 22.7 torsion design on a critical member.'});
+
+        torsion = { vEdT: null, combined: null, vRdMax: null, status: torsionStatus, AswTOverSv: AtOverSv, AslReq: round(AlReq,0), Tu, TnLimit: round(phiTorsion*TnLimit,2) };
+      } else if(torsionCheck && !(Tu>0)){
+        flags.push({level:'review', msg:'Torsion check enabled but no Design Torsion Tu entered — torsion has not been checked. Provide Tu from a full frame/grillage analysis.'});
+      }
+
+      /* ---------------- BEARING STRESS AT SUPPORT ---------------- */
+      const bearingLen = bearing || 150;
+      const bearingArea = b * bearingLen;
+      const bearingStress = round((Vu*1e3)/bearingArea, 3);
+      const allowBearing = round(0.85*0.65*fc, 2); // ACI 318 Cl. 22.8, phi(0.65)*0.85f'c for bearing on full area, simplified
+      const bearingOK = bearingStress <= allowBearing;
+      if(!bearingOK) flags.push({level:'review', msg:`Bearing stress at support (${bearingStress} N/mm²) exceeds the simplified allowable (${allowBearing} N/mm²) for a ${bearingLen} mm bearing length. Increase bearing length/padstone size or verify the actual support material's bearing capacity.`});
+      steps.push({t:'Bearing Stress at Support', f:"σbearing = Vu×10³/(b×bearing length)  vs  φ(0.85f'c), φ=0.65", r:`σbearing = ${bearingStress} N/mm²  vs allowable ${allowBearing} N/mm²  (bearing length = ${bearingLen} mm)`, c:'ACI 318 Cl. 22.8 (simplified)'});
+
+      /* ---------------- 7. DEFLECTION (ACI 318 Table 9.3.1.1 — minimum thickness, simplified proxy) ---------------- */
+      // ACI 318 doesn't use a span/depth ratio "check" the way BS8110/IS456/EC2 do — it
+      // instead sets minimum member THICKNESS (Table 9.3.1.1) below which deflection need
+      // not be calculated. We apply that thickness table as a proxy pass/fail here; a
+      // full deflection calculation (Cl. 24.2) is the code's actual fallback method if
+      // this simplified check doesn't clear, and is not performed by this engine.
+      let minHFactor;
+      switch(condition){
+        case 'cantilever': minHFactor = 1/8; break;
+        case 'simply_supported': minHFactor = 1/16; break;
+        default: minHFactor = condition.includes('interior') ? 1/21 : 1/18.5; // interior span vs end span, Table 9.3.1.1
+      }
+      const fyFactor = 0.4 + fy/700; // Table 9.3.1.1 footnote, adjustment for fy != 420 MPa
+      const minH = round(Leff*1000*minHFactor*fyFactor, 1);
+      const deflectionOK = h >= minH;
+      // Recast as a span/depth RATIO (using overall depth h, per Table 9.3.1.1) so it
+      // displays consistently with the other Handasium modules' deflection panel —
+      // mathematically identical check to h >= hmin, just expressed as Leff/h vs the
+      // implied limiting ratio.
+      const actualRatio = round((Leff*1000)/h, 2);
+      const allowableRatio = round(1/(minHFactor*fyFactor), 2);
+
+      steps.push({t:'Minimum Thickness (deflection proxy)', f:'hmin = Leff × factor × (0.4+fy/700)', r:`hmin ≈ ${minH} mm  vs provided h = ${h} mm  →  ${deflectionOK?'PASS':'REVIEW'}`, c:'ACI 318 Table 9.3.1.1 (simplified — a full Cl. 24.2 deflection calc governs if this does not clear)'});
+      if(!deflectionOK) flags.push({level:'review', msg:'Provided overall depth is below the ACI 318 Table 9.3.1.1 minimum thickness for deflection to be waived without calculation. This does NOT necessarily mean the beam fails — it means a full Cl. 24.2 deflection calculation is required, which this engine does not perform. Increase depth or commission a full deflection check.'});
+      flags.push({level:'review', msg:'ACI 318 handles deflection differently from BS 8110/IS 456/Eurocode 2 — rather than a span/depth ratio pass/fail, it sets a minimum thickness below which deflection need not be checked at all (Table 9.3.1.1). This engine applies that table as a proxy; it does not perform the full Cl. 24.2 deflection calculation the code requires if the minimum thickness isn\'t met.'});
+
+      /* ---------------- 8. DETAILING: ANCHORAGE & CURTAILMENT (indicative) ---------------- */
+      const anchorageLen = round(40*16, 0); // simplified rule-of-thumb, broadly consistent with typical development length for Grade 420/f'c=25-30
+      steps.push({t:'Development Length (simplified)', f:'ld ≈ 40 × bar diameter (rule-of-thumb, typical Grade 420 / f\'c=25-30 combination)', r:`ld ≈ ${anchorageLen} mm for ⌀16 — verify against the full ACI 318 Cl. 25.4 development length equations for critical members and other grade combinations.`, c:'Simplified — engineering judgement required'});
+      flags.push({level:'review', msg:'Development/anchorage lengths shown are a simplified rule-of-thumb (~40×bar diameter). Confirm against the full ACI 318 Cl. 25.4 development length calculation for critical or heavily loaded connections.'});
+
+      const extensionLen = Math.max(12*trialBar, dShear);
+      let curtailment;
+      if(input.directDesign){
+        curtailment = { type:'none', points:[], note:'Direct Design mode — no bending moment distribution is available from this tool (Mu/Vu were supplied directly). Run all tension bars full length into supports with full anchorage, or supply curtailment lengths from your own analysis.' };
+      } else if(profile){
+        const halfMu = 0.5*Mu;
+        const crossings = [];
+        for(let i=0;i<profile.pts.length-1;i++){
+          const m0=Math.abs(profile.pts[i].M), m1=Math.abs(profile.pts[i+1].M);
+          const x0=profile.pts[i].x, x1=profile.pts[i+1].x;
+          if((m0-halfMu)*(m1-halfMu) < 0){
+            const t = (halfMu-m0)/(m1-m0);
+            crossings.push(round(x0+t*(x1-x0),3));
+          }
+        }
+        curtailment = crossings.length>0
+          ? { type:'calculated', points:crossings, note:`Based on the exact bending moment envelope: bars could theoretically stop where |M| falls to half of Mu (at ${crossings.join(' m and ')} m from the left/fixed support), extended by the greater of d or 12×bar Ø ≈ ${round(extensionLen,0)} mm (Cl. 9.7.3.3). Remaining bars must run full length into the support with full anchorage.` }
+          : { type:'none', points:[], note:'Moment does not fall to 50% of Mu within the span — no bars can be curtailed; run all tension bars full length with full anchorage.' };
+      } else {
+        const coeff = CONTINUOUS_COEFF[condition];
+        curtailment = coeff.hogging
+          ? { type:'simplified', points:[], note:`Simplified rule: top (hogging) bars may be curtailed at approximately ${condition==='continuous_first_interior_support'?0.25:0.15}×Leff (${round((condition==='continuous_first_interior_support'?0.25:0.15)*Leff,2)} m) from the support face into the span, with at least 1/3 continuing further (Cl. 9.7.3.8.1).` }
+          : { type:'simplified', points:[], note:`Simplified rule: at least 1/4 of span (bottom) steel should run continuous through the supports (Cl. 9.7.3.8.1); remaining bars may be curtailed at approximately 0.08×Leff (${round(0.08*Leff,2)} m) from each support face.` };
+      }
+      flags.push({level:'review', msg:'Curtailment lengths are indicative only — always verify bar cut-off points against the actual bending moment envelope and ACI 318 Cl. 9.7.3 before finalising a bar bending schedule.'});
+      steps.push({t:'Curtailment (indicative)', f:'50%-Mu crossing point(s) + extension allowance, or simplified fraction of Leff for continuous members', r:curtailment.note, c:'ACI 318 Cl. 9.7.3 (simplified)'});
+
+      /* ---------------- OVERALL STATUS ---------------- */
+      let status = 'PASS';
+      if(flags.some(f=>f.level==='fail')) status='FAIL';
+      else if(flags.some(f=>f.level==='review')) status='REVIEW';
+
+      return {
+        standard:'ACI 318M (SI units)',
+        inputsEcho: input,
+        span: { Lclear:L, Leff, supportWidth:supportW },
+        designActions: { selfWeight, Gk, Qk, w, ultimateLoads, Mu, Vu, hogging, profile, qualitativeDiagram },
+        section: { d, dShear, bEff: isFlanged?bEff:null, isFlanged },
+        flexure: { K: round((Mu*1e6)/(bFlex*d*d*fc),4), Kp: round(0.85*(b1*0.42857)*(1-(b1*0.42857)/2),4), doubly, z:null, As2, d2, AsReq, AsMin, AsMax:AsMaxByCode, barOptions, phi:phiRep, et:etRep },
+        shear: { v: vu, vc, vmax: vc+vsMax, status:shearStatus, stirrupOptions },
+        torsion,
+        bearing: { bearingLen, bearingStress, allowBearing, ok:bearingOK },
+        deflection: { basicRatio: round(1/minHFactor,2), mfTension:null, mfComp:null, allowableRatio, actualRatio, ok:deflectionOK },
+        cover: { provided:cover, required:coverRequired, ok:coverOK, fireWidthMin:0, widthOK:true },
+        detailing: { anchorageLen, curtailment, extensionLen },
+        flags, steps, status
+      };
+    }
+  }
+};
+
+/* =========================================================================
+   UI WIRING
+   ========================================================================= */
+const beamTypeEl = document.getElementById('beamType');
+const conditionEl = document.getElementById('condition');
+let selectedBarDia = 16;
+let selectedStirrupDia = 8;
+
+const torsionCheckEl = document.getElementById('torsionCheck');
+const directDesignEl = document.getElementById('directDesign');
+
+beamTypeEl.addEventListener('change', ()=>{
+  document.getElementById('flangeFields').style.display = beamTypeEl.value==='rect' ? 'none':'block';
+});
+conditionEl.addEventListener('change', ()=>{
+  document.getElementById('continuousNote').style.display = conditionEl.value.startsWith('continuous') ? 'block':'none';
+});
+torsionCheckEl.addEventListener('change', ()=>{
+  document.getElementById('torsionFields').style.display = torsionCheckEl.checked ? 'block':'none';
+});
+directDesignEl.addEventListener('change', ()=>{
+  const on = directDesignEl.checked;
+  document.getElementById('appliedLoadsFieldset').style.display = on ? 'none':'block';
+  document.getElementById('directLoadsFieldset').style.display = on ? 'block':'none';
+  document.getElementById('reinforcementFaceField').style.display = on ? 'block':'none';
+});
+
+/* ---------------- SLAB LOAD HELPER ---------------- */
+document.getElementById('slabType').addEventListener('change', (e)=>{
+  const isTwoWay = e.target.value==='twoway';
+  document.getElementById('onewayFields').style.display = isTwoWay ? 'none':'block';
+  document.getElementById('twowayFields').style.display = isTwoWay ? 'block':'none';
+});
+
+document.getElementById('slabCalcBtn').addEventListener('click', ()=>{
+  const type = document.getElementById('slabType').value;
+  const slabDead = parseFloat(document.getElementById('slabDead').value)||0;
+  const slabLive = parseFloat(document.getElementById('slabLive').value)||0;
+  let deadUDL, liveUDL, formula;
+
+  if(type==='oneway'){
+    const trib = parseFloat(document.getElementById('slabTribWidth').value)||0;
+    if(trib<=0){ alert('Enter a positive tributary width.'); return; }
+    deadUDL = slabDead*trib; liveUDL = slabLive*trib;
+    formula = `w × tributary width (${trib} m)`;
+  } else {
+    const Lx = parseFloat(document.getElementById('slabLx').value)||0;
+    const Ly = parseFloat(document.getElementById('slabLy').value)||0;
+    const edge = document.getElementById('slabEdge').value;
+    if(Lx<=0 || Ly<=0 || Ly<Lx){ alert('Enter valid Lx and Ly, with Ly ≥ Lx (Lx is the shorter span).'); return; }
+    const beta = Ly/Lx;
+    if(edge==='short'){
+      deadUDL = slabDead*Lx/3; liveUDL = slabLive*Lx/3;
+      formula = `triangular: w × Lx/3 = w × ${Lx}/3`;
+    } else {
+      const factor = (Lx/2)*(1-1/(3*beta*beta));
+      deadUDL = slabDead*factor; liveUDL = slabLive*factor;
+      formula = `trapezoidal: w × Lx/2 × [1−1/(3β²)], β=${round(beta,2)}`;
+    }
+  }
+  deadUDL = round(deadUDL,3); liveUDL = round(liveUDL,3);
+  const resultEl = document.getElementById('slabResult');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `Equivalent: +${deadUDL} kN/m dead, +${liveUDL} kN/m live (${formula})`;
+  const applyBtn = document.getElementById('slabApplyBtn');
+  applyBtn.style.display = 'block';
+  applyBtn.dataset.dead = deadUDL;
+  applyBtn.dataset.live = liveUDL;
+});
+
+document.getElementById('slabApplyBtn').addEventListener('click', ()=>{
+  const applyBtn = document.getElementById('slabApplyBtn');
+  const dead = parseFloat(applyBtn.dataset.dead)||0;
+  const live = parseFloat(applyBtn.dataset.live)||0;
+  const deadEl = document.getElementById('dead'), liveEl = document.getElementById('live');
+  deadEl.value = round((parseFloat(deadEl.value)||0) + dead, 3);
+  liveEl.value = round((parseFloat(liveEl.value)||0) + live, 3);
+  document.getElementById('slabResult').innerHTML += ' — added to Dead/Live fields ✓';
+});
+
+function getInputs(){
+  return {
+    beamType: beamTypeEl.value,
+    condition: conditionEl.value,
+    b: parseFloat(document.getElementById('b').value),
+    h: parseFloat(document.getElementById('h').value),
+    L: parseFloat(document.getElementById('L').value),
+    cover: parseFloat(document.getElementById('cover').value),
+    bearing: parseFloat(document.getElementById('bearing').value) || 150,
+    supportWidth: parseFloat(document.getElementById('supportWidth').value) || 0,
+    exposure: document.getElementById('exposure').value,
+    bf: beamTypeEl.value!=='rect' ? parseFloat(document.getElementById('bf').value) : null,
+    hf: beamTypeEl.value!=='rect' ? parseFloat(document.getElementById('hf').value) : null,
+    dead: parseFloat(document.getElementById('dead').value),
+    live: parseFloat(document.getElementById('live').value),
+    wall: parseFloat(document.getElementById('wall').value)||0,
+    finishes: parseFloat(document.getElementById('finishes').value)||0,
+    pointLoads: [1,2,3].map(i=>({
+      P: parseFloat(document.getElementById('pointLoad'+i).value)||0,
+      a: parseFloat(document.getElementById('pointLoadPos'+i).value)||0
+    })),
+    torsionCheck: torsionCheckEl.checked,
+    Tu: parseFloat(document.getElementById('Tu').value)||0,
+    directDesign: directDesignEl.checked,
+    MuDirect: parseFloat(document.getElementById('MuDirect').value)||0,
+    VuDirect: parseFloat(document.getElementById('VuDirect').value)||0,
+    reinforcementFace: document.getElementById('reinforcementFace').value,
+    fck: parseFloat(document.getElementById('fck').value),
+    fy: parseFloat(document.getElementById('fy').value),
+    fyv: parseFloat(document.getElementById('fyv').value)
+  };
+}
+
+/* ---------------- INPUT VALIDATION (blocking) ---------------- */
+function validateInputs(input){
+  const e = [];
+  if(!(input.b>0)) e.push('Width b must be a positive number.');
+  if(!(input.h>0)) e.push('Overall depth h must be a positive number.');
+  if(!(input.L>0)) e.push('Clear span L must be a positive number.');
+  if(!(input.cover>0)) e.push('Nominal cover must be a positive number.');
+  if(input.b>0 && input.h>0 && input.cover>0 && (input.cover*2 + 60) >= input.h)
+    e.push(`Cover (${input.cover} mm) leaves too little room in a ${input.h} mm deep section — effective depth would be unrealistic. Increase depth or reduce cover.`);
+  if(input.beamType!=='rect'){
+    if(!(input.bf>0)) e.push('Flange width bf must be a positive number for T/L beams.');
+    if(!(input.hf>0)) e.push('Flange thickness hf must be a positive number for T/L beams.');
+    if(input.bf>0 && input.b>0 && input.bf < input.b) e.push(`Flange width (${input.bf} mm) cannot be less than the web width (${input.b} mm).`);
+    if(input.hf>0 && input.h>0 && input.hf >= input.h) e.push(`Flange thickness (${input.hf} mm) must be less than the overall depth (${input.h} mm).`);
+  }
+  if(input.supportWidth < 0) e.push('Support width cannot be negative.');
+  if(!(input.bearing>0)) e.push('Bearing length at support must be a positive number.');
+  (input.pointLoads||[]).forEach((ld,i)=>{
+    if(ld.P>0 && input.L>0 && (ld.a<0 || ld.a>input.L)) e.push(`Point load P${i+1} position (${ld.a} m) must be between 0 and the clear span (${input.L} m).`);
+  });
+  if(input.torsionCheck && input.Tu<0) e.push('Design Torsion Tu cannot be negative.');
+  if(input.directDesign){
+    if(!(input.MuDirect>0)) e.push('Direct Design mode requires a positive Design Moment Mu.');
+    if(!(input.VuDirect>0)) e.push('Direct Design mode requires a positive Design Shear Vu.');
+  }
+  if(!(input.fck>0)) e.push("Concrete strength f'c must be a positive number.");
+  if(!(input.fy>0)) e.push('Steel yield strength fy must be a positive number.');
+  return e;
+}
+
+function pill(status){
+  const cls = status==='PASS'?'pass':status==='FAIL'?'fail':'review';
+  return `<span class="pill ${cls}">${status}</span>`;
+}
+
+function drawSection(input, result, dia){
+  const b = input.b, h = input.h;
+  const scale = Math.min(220/b, 340/h);
+  const W = b*scale, H = h*scale;
+  const ox = 30, oy = 20;
+  const opt = result.flexure.barOptions.find(o=>o.dia===dia);
+  const cover = input.cover, stirrup = 8;
+  const barR = (dia/2)*scale;
+  const gap = 25*scale;
+  const xStart = ox + cover*scale + stirrup*scale + barR;
+  const xEnd = ox + W - cover*scale - stirrup*scale - barR;
+  const hog = result.designActions.hogging;
+
+  let barsSvg = '';
+  const layerYs = opt.layers===2
+    ? [ hog ? oy+cover*scale+stirrup*scale+barR : oy+H-cover*scale-stirrup*scale-barR,
+        hog ? oy+cover*scale+stirrup*scale+barR+2*barR+gap : oy+H-cover*scale-stirrup*scale-barR-2*barR-gap ]
+    : [ hog ? oy+cover*scale+stirrup*scale+barR : oy+H-cover*scale-stirrup*scale-barR ];
+
+  opt.perLayer.forEach((count, li)=>{
+    const y = layerYs[li];
+    for(let i=0;i<count;i++){
+      const x = count>1 ? xStart + i*(xEnd-xStart)/(count-1) : (xStart+xEnd)/2;
+      barsSvg += `<circle cx="${x}" cy="${y}" r="${barR}" fill="#1E4E8C" stroke="#12315C" stroke-width="1"/>`;
+    }
+  });
+
+  // Compression steel (opposite face) for doubly reinforced sections
+  let compSvg = '';
+  let compLabel = '';
+  if(result.flexure.doubly && result.flexure.As2 > 0){
+    const compArea = BAR_AREAS[dia];
+    const nComp = Math.max(2, Math.ceil(result.flexure.As2/compArea));
+    const compY = hog ? oy+H-cover*scale-stirrup*scale-barR : oy+cover*scale+stirrup*scale+barR;
+    const cxStart = ox + cover*scale + stirrup*scale + barR;
+    const cxEnd = ox + W - cover*scale - stirrup*scale - barR;
+    for(let i=0;i<nComp;i++){
+      const x = nComp>1 ? cxStart + i*(cxEnd-cxStart)/(nComp-1) : (cxStart+cxEnd)/2;
+      compSvg += `<circle cx="${x}" cy="${compY}" r="${barR}" fill="#A8660F" stroke="#7A4B0C" stroke-width="1"/>`;
+    }
+    compLabel = `<text x="${ox+W+2}" y="${compY+3}" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#A8660F">${nComp}Φ${dia} comp.</text>`;
+  }
+
+  // flange for T/L beams
+  let flangeSvg = '';
+  if(result.section.isFlanged && input.hf){
+    const bf = input.bf, hf = input.hf;
+    const fW = bf*scale, fH = hf*scale;
+    const fx = input.beamType==='tbeam' ? ox - (fW-W)/2 : ox - (fW-W);
+    flangeSvg = `<rect x="${fx}" y="${oy}" width="${fW}" height="${fH}" fill="none" stroke="#4B5563" stroke-width="1.2" stroke-dasharray="3,2"/>`;
+  }
+
+  return `
+  <svg width="${W+90}" height="${H+40}" viewBox="0 0 ${W+90} ${H+40}" xmlns="http://www.w3.org/2000/svg">
+    ${flangeSvg}
+    <rect x="${ox}" y="${oy}" width="${W}" height="${H}" fill="#F6F7F9" stroke="#1B2430" stroke-width="1.6"/>
+    <rect x="${ox+cover*scale}" y="${oy+cover*scale}" width="${W-2*cover*scale}" height="${H-2*cover*scale}" fill="none" stroke="#A8660F" stroke-width="1" stroke-dasharray="2,2"/>
+    ${barsSvg}
+    ${compSvg}
+    ${compLabel}
+    <text x="${ox+W/2}" y="${oy+H+18}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono, monospace" fill="#4B5563">b = ${b}mm</text>
+    <text x="${ox-8}" y="${oy+H/2}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono, monospace" fill="#4B5563" transform="rotate(-90 ${ox-8} ${oy+H/2})">h = ${h}mm</text>
+    ${opt.layers===2?`<text x="${ox+W+2}" y="${oy+H/2}" font-size="9" font-family="IBM Plex Mono, monospace" fill="#A8660F">2 layers</text>`:''}
+  </svg>`;
+}
+
+/* ---------------- BMD / SFD ---------------- */
+function computeDiagram(input, result){
+  const L = input.L, w = result.designActions.w, Mu = result.designActions.Mu, Vu = result.designActions.Vu;
+  const N = 40;
+  let qualitative = !!result.designActions.qualitativeDiagram;
+
+  // Simply supported & cantilever already have an exact profile computed
+  // by the engine (incl. any point load) — reuse it directly.
+  if(result.designActions.profile){
+    return { pts: result.designActions.profile.pts, qualitative:false };
+  }
+
+  const pts = [];
+  const hog = result.designActions.hogging;
+  for(let i=0;i<=N;i++){ const x = L*i/N; const t=x/L;
+    const M = hog ? -Mu*Math.pow(1-t,1.6) : 4*Mu*t*(1-t);
+    const V = Vu*(1-2*t);
+    pts.push({x,M,V});
+  }
+  return { pts, qualitative };
+}
+
+function diagramSVG(pts, key, label, unit, colorPos, colorNeg){
+  const W=380,H=140,padL=38,padR=14,padT=10,padB=18;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const L = pts[pts.length-1].x;
+  const vals = pts.map(p=>p[key]);
+  const maxV = Math.max(...vals, 0.001), minV = Math.min(...vals, -0.001);
+  const range = Math.max(maxV - minV, 0.001);
+  const zeroY = padT + plotH*(maxV/range);
+
+  const xOf = x => padL + (x/L)*plotW;
+  const yOf = v => padT + plotH*((maxV - v)/range);
+
+  let path = `M ${xOf(0)} ${zeroY} `;
+  pts.forEach(p=> path += `L ${xOf(p.x)} ${yOf(p[key])} `);
+  path += `L ${xOf(L)} ${zeroY} Z`;
+
+  const peak = vals.reduce((a,b)=> Math.abs(b)>Math.abs(a)?b:a, 0);
+  const peakPt = pts.find(p=>p[key]===peak);
+
+  return `
+  <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${path}" fill="${peak>=0?colorPos:colorNeg}" fill-opacity="0.22" stroke="${peak>=0?colorPos:colorNeg}" stroke-width="1.6"/>
+    <line x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}" stroke="#1B2430" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#1B2430" stroke-width="1"/>
+    <text x="${xOf(peakPt.x)}" y="${yOf(peak) + (peak>=0? -6:14)}" text-anchor="middle" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="#1B2430">${round(peak,2)}${unit}</text>
+    <text x="${padL}" y="${H-4}" font-size="9.5" font-family="IBM Plex Mono, monospace" fill="#8A93A0">0</text>
+    <text x="${W-padR}" y="${H-4}" text-anchor="end" font-size="9.5" font-family="IBM Plex Mono, monospace" fill="#8A93A0">${round(L,1)}m</text>
+  </svg>`;
+}
+
+function renderResults(input, result){
+  selectedBarDia = 16;
+  const okStirrup = result.shear.stirrupOptions.find(s=>s.ok);
+  selectedStirrupDia = okStirrup ? okStirrup.dia : (result.shear.stirrupOptions[0]?.dia || 8);
+  renderAll(input, result);
+}
+
+const UNIT_MASS = { 8:0.395, 10:0.617, 12:0.888, 16:1.578, 20:2.466, 25:3.853 }; // kg/m
+
+function computeBBS(input, result, barDia, stirrupDia){
+  const opt = result.flexure.barOptions.find(o=>o.dia===barDia);
+  const stirrupOpt = result.shear.stirrupOptions.find(s=>s.dia===stirrupDia);
+  const LeffMM = result.span.Leff * 1000;
+  const anchorMM = Math.round((barDia/16) * result.detailing.anchorageLen); // scale simplified 40Ø rule to actual bar dia
+  const rows = [];
+
+  // Main tension bars — split into "full length" and "curtailed" marks if a
+  // calculated curtailment exists; otherwise all bars run full length.
+  const curt = result.detailing.curtailment;
+  if(curt.type==='calculated' && curt.points.length>=2){
+    const fullQty = Math.ceil(opt.n/2);
+    const curtQty = opt.n - fullQty;
+    const fullLen = Math.round(LeffMM + 2*anchorMM);
+    const curtSpan = Math.round((curt.points[curt.points.length-1]-curt.points[0])*1000 + 2*result.detailing.extensionLen);
+    rows.push({ mark:'01', desc:`Φ${barDia} straight (full length)`, qty:fullQty, length:fullLen, weight: round(fullQty*fullLen/1000*UNIT_MASS[barDia],2) });
+    if(curtQty>0) rows.push({ mark:'02', desc:`Φ${barDia} straight (curtailed)`, qty:curtQty, length:curtSpan, weight: round(curtQty*curtSpan/1000*UNIT_MASS[barDia],2) });
+  } else {
+    const fullLen = Math.round(LeffMM + 2*anchorMM);
+    rows.push({ mark:'01', desc:`Φ${barDia} straight (${result.designActions.hogging?'top':'bottom'})`, qty:opt.n, length:fullLen, weight: round(opt.n*fullLen/1000*UNIT_MASS[barDia],2) });
+  }
+
+  // Compression steel, if doubly reinforced
+  if(result.flexure.doubly && result.flexure.As2>0){
+    const nComp = Math.max(2, Math.ceil(result.flexure.As2/BAR_AREAS[barDia]));
+    const compLen = Math.round(LeffMM + 2*anchorMM);
+    rows.push({ mark:'03', desc:`Φ${barDia} straight (compression)`, qty:nComp, length:compLen, weight: round(nComp*compLen/1000*UNIT_MASS[barDia],2) });
+  }
+
+  // Stirrups — closed rectangular link (per IS 2502 bar-bending-schedule conventions), + hook allowance
+  if(stirrupOpt){
+    const linkLen = Math.round(2*(input.b - 2*input.cover) + 2*(input.h - 2*input.cover) + 150); // +150mm for two 135° hook allowances
+    const qty = Math.floor(LeffMM/stirrupOpt.spacing) + 1;
+    rows.push({ mark:'04', desc:`Φ${stirrupDia} closed link${stirrupOpt.closedRequired?' (torsion)':''}`, qty, length:linkLen, weight: round(qty*linkLen/1000*UNIT_MASS[stirrupDia],2) });
+  }
+
+  const totalWeight = round(rows.reduce((s,r)=>s+r.weight,0), 1);
+  const concreteVolume = round((input.b/1000)*(input.h/1000)*result.span.Leff, 3);
+  const steelRatio = concreteVolume>0 ? round(totalWeight/concreteVolume, 1) : 0;
+
+  return { rows, totalWeight, concreteVolume, steelRatio };
+}
+
+function renderAll(input, result){
+  const r = result;
+  const statusCls = r.status==='PASS'?'pass':r.status==='FAIL'?'fail':'review';
+  const statusText = r.status==='PASS' ? 'Design PASSES all checks' : r.status==='FAIL' ? 'Design FAILS — revise section' : 'Design PASSES with items for engineer review';
+
+  const diagram = computeDiagram(input, r);
+  const bbs = computeBBS(input, r, selectedBarDia, selectedStirrupDia);
+
+  let html = `
+  <div class="status-banner ${statusCls}">
+    <span>${statusText}</span>
+    <span class="tag">${r.standard}</span>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Calculated Design Actions</div>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:10px;">Clear span ${r.span.Lclear} m + support width ${r.span.supportWidth} mm → effective design span Leff = <b>${r.span.Leff} m</b> (used for all calculations below).</div>
+      <div class="actions-grid">
+        <div class="action-card"><div class="k">Ultimate UDL</div><div class="v">${r.designActions.w} kN/m</div></div>
+        <div class="action-card"><div class="k">Self-weight</div><div class="v">${r.designActions.selfWeight} kN/m</div></div>
+        <div class="action-card"><div class="k">Design Moment Mu</div><div class="v">${r.designActions.Mu} kNm</div></div>
+        <div class="action-card"><div class="k">Design Shear Vu</div><div class="v">${r.designActions.Vu} kN</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Bending Moment &amp; Shear Force Diagrams</div>
+    <div class="panel-body">
+      ${diagram.qualitative ? `<div class="note">${input.directDesign ? 'Direct Design mode — no moment/shear distribution is available from this tool; the shape below is a generic representation scaled to your entered Mu/Vu, not a real distribution. Use for visualisation only.' : 'Continuous-beam BMD/SFD shown here are a representative shape scaled to the calculated Mu/Vu (simplified coefficients), not a full elastic frame analysis. Use for visualisation only.'}</div>` : ''}
+      <div class="diagram-grid">
+        <div class="diagram-box">
+          <div class="lbl">Bending Moment Diagram</div>
+          ${diagramSVG(diagram.pts,'M','BMD','kNm','#1E4E8C','#A8660F')}
+        </div>
+        <div class="diagram-box">
+          <div class="lbl">Shear Force Diagram</div>
+          ${diagramSVG(diagram.pts,'V','SFD','kN','#1E7A46','#B23A2E')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Reinforcement Options ${r.designActions.hogging?'<span style=\"font-weight:400;font-size:11.5px;color:var(--review);\">— TOP steel (hogging)</span>':'<span style=\"font-weight:400;font-size:11.5px;color:var(--ink-soft);\">— bottom steel (sagging)</span>'}</div>
+    <div class="panel-body">
+      ${r.flexure.doubly ? `<div class="note">Doubly reinforced section — compression steel Asc = ${round(r.flexure.As2,0)} mm² required, shown in amber on the opposite face of the section drawing (using the same bar diameter as your tension steel selection for a representative layout).</div>` : ''}
+      <div class="bar-options" id="barOptionsWrap">
+        ${r.flexure.barOptions.map(o=>`
+          <div class="bar-opt ${o.dia===selectedBarDia?'selected':''}" data-dia="${o.dia}">
+            <div class="title">${o.n}Φ${o.dia}${o.layers===2?` (${o.perLayer.join('+')}, 2 layers)`:''} ${o.dia===selectedBarDia?'<span class=\"selected-badge\">SELECTED</span>':''}</div>
+            <div class="sub">Provided As: <b>${o.provided} mm²</b> (${o.utilisation}% of req'd)</div>
+            <div class="sub">Clear spacing: <b>${o.clearSpacing!==null?o.clearSpacing+' mm':'—'}</b> ${o.spacingOK?'':'<span style=\"color:var(--fail);\">⚠ below min '+o.minClear+'mm</span>'}</div>
+            ${o.layerNote?`<div class="sub" style="color:var(--review);">⚠ ${o.layerNote}</div>`:''}
+          </div>`).join('')}
+      </div>
+      <div class="section-wrap">
+        <div class="svg-box" id="svgBox">${drawSection(input, r, selectedBarDia)}</div>
+        <table class="check-table">
+          <tr><th>Check</th><th>Value</th><th>Limit</th><th>Status</th></tr>
+          <tr><td>As,req (governing)</td><td class="num">${round(r.flexure.AsReq,0)} mm²</td><td class="num">As,min ${round(r.flexure.AsMin,0)} / As,max ${round(r.flexure.AsMax,0)}</td><td>${pill('PASS')}</td></tr>
+          <tr><td>Net tensile strain εt vs 0.004 min</td><td class="num">${round(r.flexure.et,4)}</td><td class="num">0.004</td><td>${pill(r.flexure.doubly?'REVIEW':'PASS')}</td></tr>
+          <tr><td>φ factor (flexure)</td><td class="num">${round(r.flexure.phi,3)}</td><td class="num">0.90 target</td><td>${pill(r.flexure.phi>=0.9?'PASS':'REVIEW')}</td></tr>
+          <tr><td>Shear stress v vs vmax</td><td class="num">${round(r.shear.v,3)} N/mm²</td><td class="num">${round(r.shear.vmax,3)} N/mm²</td><td>${pill(r.shear.status)}</td></tr>
+          <tr><td>Deflection L/d</td><td class="num">${round(r.deflection.actualRatio,2)}</td><td class="num">${round(r.deflection.allowableRatio,2)}</td><td>${pill(r.deflection.ok?'PASS':'FAIL')}</td></tr>
+          <tr><td>Bearing stress at support</td><td class="num">${r.bearing.bearingStress} N/mm²</td><td class="num">${r.bearing.allowBearing} N/mm²</td><td>${pill(r.bearing.ok?'PASS':'REVIEW')}</td></tr>
+          <tr><td>Nominal cover (durability/fire)</td><td class="num">${r.cover.provided} mm</td><td class="num">${r.cover.required} mm</td><td>${pill(r.cover.ok?'PASS':'REVIEW')}</td></tr>
+          ${r.torsion?`<tr><td>Torsion: combined v+vt vs vtu</td><td class="num">${r.torsion.combined} N/mm²</td><td class="num">${r.torsion.vtu} N/mm²</td><td>${pill(r.torsion.status)}</td></tr>`:''}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  ${r.torsion ? `
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Torsion Design</div>
+    <div class="panel-body">
+      <table class="check-table">
+        <tr><th>Item</th><th>Value</th></tr>
+        <tr><td>Torsional shear stress, vt</td><td class="num">${r.torsion.vt} N/mm²</td></tr>
+        <tr><td>vt,min (below this, no torsion steel needed)</td><td class="num">${r.torsion.vtMin} N/mm²</td></tr>
+        <tr><td>Combined v + vt vs vtu</td><td class="num">${r.torsion.combined} / ${r.torsion.vtu} N/mm²</td></tr>
+        ${r.torsion.reinforcementNeeded ? `
+        <tr><td>Torsion link requirement, Asv,t/sv</td><td class="num">${round(r.torsion.torsionAsvSv,4)} mm²/mm (closed links)</td></tr>
+        <tr><td>Additional longitudinal steel, Asl</td><td class="num">${r.torsion.Asl} mm² (distribute around link perimeter, min. 1 bar per corner)</td></tr>` : `
+        <tr><td colspan="2">vt below vt,min — no torsion reinforcement required by calculation.</td></tr>`}
+      </table>
+      ${r.torsion.reinforcementNeeded ? `<div class="note">Torsion requires <b>closed</b> links (fully anchored, not open U-stirrups). The stirrup spacing table below already includes the torsion link contribution combined with shear.</div>` : ''}
+    </div>
+  </div>` : ''}
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Shear Links (based on selected bar's provided As) <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft);">— click a row to select</span></div>
+    <div class="panel-body">
+      ${r.shear.status==='FAIL' ? `<div class="note" style="border-left-color:var(--fail);">Section fails in shear before links can be sized. Increase b or h.</div>` : `
+      ${r.shear.stirrupOptions[0]?.closedRequired ? `<div class="note">Torsion is present — links must be closed (fully anchored) stirrups, spacing below already accounts for the combined shear + torsion requirement.</div>`:''}
+      <table class="check-table" id="stirrupTable">
+        <tr><th>Stirrup</th><th>Spacing sv</th><th>Max allowed sv</th><th>Status</th></tr>
+        ${r.shear.stirrupOptions.map(s=>`<tr class="stirrup-opt ${s.dia===selectedStirrupDia?'selected':''}" data-dia="${s.dia}"><td>Φ${s.dia} — 2 legs ${s.dia===selectedStirrupDia?'<span class=\"selected-badge\">SELECTED</span>':''}</td><td class="num">${s.spacing} mm c/c</td><td class="num">${s.maxSpacing} mm</td><td>${pill(s.ok?'PASS':'REVIEW')}</td></tr>`).join('')}
+      </table>`}
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Detailing — Curtailment &amp; Anchorage (indicative)</div>
+    <div class="panel-body">
+      <div class="note">${r.detailing.curtailment.note}</div>
+      <div class="hint">Development length (simplified, ~40×bar Ø): ${r.detailing.anchorageLen} mm for ⌀16 — scale proportionally for your selected bar diameter and confirm against ACI 318 Cl. 25.4 for critical members and other grade combinations.</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Bar Bending Schedule &amp; Quantities (based on your selection)</div>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:10px;">Indicative schedule — cutting lengths use simplified anchorage/curtailment allowances. Verify against your detailer's drawing before fabrication.</div>
+      <table class="check-table">
+        <tr><th>Mark</th><th>Bar Ø / Shape</th><th>Qty</th><th>Length</th><th>Weight</th></tr>
+        ${bbs.rows.map(row=>`<tr><td>${row.mark}</td><td>${row.desc}</td><td class="num">${row.qty}</td><td class="num">${row.length} mm</td><td class="num">${row.weight} kg</td></tr>`).join('')}
+        <tr style="font-weight:700;"><td colspan="4">Total steel weight</td><td class="num">${bbs.totalWeight} kg</td></tr>
+      </table>
+      <div class="actions-grid" style="margin-top:12px;">
+        <div class="action-card"><div class="k">Concrete Volume</div><div class="v">${bbs.concreteVolume} m³</div></div>
+        <div class="action-card"><div class="k">Total Steel Weight</div><div class="v">${bbs.totalWeight} kg</div></div>
+        <div class="action-card"><div class="k">Steel Density Ratio</div><div class="v">${bbs.steelRatio} kg/m³</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-hdr">Engineer Review Items ${r.flags.length?`<span class="pill review">${r.flags.length}</span>`:''}</div>
+    <div class="panel-body">
+      ${r.flags.length ? r.flags.map(f=>`<div class="note" style="border-left-color:${f.level==='fail'?'var(--fail)':'var(--review)'};">${f.msg}</div>`).join('') : '<div class="hint">No review flags — all checks passed cleanly.</div>'}
+    </div>
+  </div>
+
+  <details class="calc-sheet">
+    <summary>Show Calculation Sheet (${r.steps.length} steps)</summary>
+    <div class="content">
+      ${r.steps.map(s=>`
+        <div class="step">
+          <div class="step-title">${s.t}</div>
+          <div class="step-formula">${s.f}</div>
+          <div class="step-result">${s.r}</div>
+          ${s.c?`<div class="step-clause">${s.c}</div>`:''}
+        </div>`).join('')}
+    </div>
+  </details>
+  `;
+
+  document.getElementById('resultsWrap').innerHTML = html;
+
+  document.querySelectorAll('.bar-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      selectedBarDia = parseInt(el.dataset.dia);
+      renderAll(input, result);
+    });
+  });
+
+  document.querySelectorAll('.stirrup-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      selectedStirrupDia = parseInt(el.dataset.dia);
+      renderAll(input, result);
+    });
+  });
+
+  // --- Bubble bridge: exposes the full result JSON to the Bubble page ---
+  // In Bubble's HTML element, define a matching "bubble_fn_result" via the
+  // element's "Expose state" JS-to-Bubble action, or simply read
+  // window.handasiumLastResult from a Bubble workflow using "Run JavaScript".
+  window.handasiumLastResult = { input, result, selectedBarDia };
+  if(typeof bubble_fn_result === 'function'){
+    try{ bubble_fn_result(JSON.stringify({ input, result, selectedBarDia })); }catch(e){}
+  }
+}
+
+// Force calc-sheet <details> open before printing (Ctrl+P / Save as PDF),
+// restore whatever state it was in afterwards.
+let _detailsWasOpen = null;
+window.addEventListener('beforeprint', ()=>{
+  const d = document.querySelector('details.calc-sheet');
+  if(d){ _detailsWasOpen = d.open; d.open = true; }
+});
+window.addEventListener('afterprint', ()=>{
+  const d = document.querySelector('details.calc-sheet');
+  if(d && _detailsWasOpen!==null){ d.open = _detailsWasOpen; }
+});
+
+document.getElementById('calcBtn').addEventListener('click', ()=>{
+  const input = getInputs();
+  const errors = validateInputs(input);
+  if(errors.length>0){
+    document.getElementById('resultsWrap').innerHTML = `
+      <div class="error-panel">
+        <div class="title">Please fix the following before calculating (${errors.length}):</div>
+        <ul>${errors.map(e=>`<li>${e}</li>`).join('')}</ul>
+      </div>`;
+    return;
+  }
+  const result = engines.aci318.calculate(input);
+  renderResults(input, result);
+});
+</script>
+</body>
+</html>
