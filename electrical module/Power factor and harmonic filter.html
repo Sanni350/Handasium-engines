@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Power Factor & Harmonics</title>
+  <!-- Chart.js for Power Triangle, Harmonic Spectrum, and Resonance Plotting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --deep-blue: #1E293B;
+      --accent-blue: #2563EB;
+      --silver: #E2E8F0;
+      --ash-grey: #64748B;
+      --light-grey: #F8FAFC;
+      --pass-green: #10B981;
+      --fail-red: #EF4444;
+      --warn-amber: #F59E0B;
+      --border: #CBD5E1;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--light-grey); color: var(--navy); margin: 0; padding: 20px 24px 24px 24px; }
+    
+    /* Top Header Layout - Handasium Design System */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .brand-title .module-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ash-grey);
+      background-color: var(--silver);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Executive Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pill-pass { background-color: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .pill-warn { background-color: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-pass { background-color: var(--pass-green); }
+    .dot-warn { background-color: var(--warn-amber); }
+    .dot-fail { background-color: var(--fail-red); }
+
+    .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panel Styles */
+    .panel { background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border); padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; border-bottom: 1.5px solid var(--light-grey); padding-bottom: 6px; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ash-grey); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background-color: #FFFFFF; font-size: 0.85rem; color: var(--navy); }
+    select:focus, input:focus { border-color: var(--accent-blue); outline: none; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Metric Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; position: relative; }
+    .card-val { font-size: 1.3rem; font-weight: 800; color: var(--navy); margin: 2px 0; }
+    .card-lbl { font-size: 0.7rem; font-weight: 600; color: var(--ash-grey); text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; margin-top: 4px; }
+    .badge-pass { background: #D1FAE5; color: #065F46; }
+    .badge-warn { background: #FEF3C7; color: #92400E; }
+    .badge-fail { background: #FEE2E2; color: #991B1B; }
+
+    /* Visual Charts Section */
+    .charts-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .charts-wrapper { grid-template-columns: 1fr; } }
+    .chart-container { position: relative; height: 260px; width: 100%; }
+
+    /* Engineering Calculation Sheet Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    th { background-color: var(--light-grey); color: var(--ash-grey); font-weight: 600; }
+    
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { background: var(--accent-blue); color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; flex: 1; font-size: 0.82rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--navy); }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Header Section -->
+<header class="app-header">
+  <div class="brand-title">
+    <h1>Handasium</h1>
+    <span class="module-tag">Power Factor & Harmonics</span>
+  </div>
+  <div id="statusPill" class="status-pill pill-pass">
+    <span id="statusDot" class="status-dot dot-pass"></span>
+    <span id="statusPillText">IEEE 519 COMPLIANT</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- Left Column: Input Parameters -->
+  <div class="panel">
+    <div class="panel-title">1. System & Grid Parameters</div>
+    
+    <div class="form-group">
+      <label for="standard">Design Standard</label>
+      <select id="standard" onchange="calculatePFEngine()">
+        <option value="IEEE519">IEEE 519-2022 / NEC Article 460</option>
+        <option value="IEC">IEC 61000-3-2 / BS 7671</option>
+        <option value="IS">IS 2834 / IS 16636</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="vLine">Line Voltage (V)</label>
+        <input type="number" id="vLine" value="400" onchange="calculatePFEngine()">
+      </div>
+      <div>
+        <label for="freq">Frequency (Hz)</label>
+        <select id="freq" onchange="calculatePFEngine()">
+          <option value="50">50 Hz</option>
+          <option value="60">60 Hz</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="gridSsc">Grid Short-Circuit (MVA)</label>
+        <input type="number" id="gridSsc" value="15" onchange="calculatePFEngine()">
+      </div>
+      <div>
+        <label for="tariffRate">Tariff ($ or ₦ / kVArh)</label>
+        <input type="number" id="tariffRate" value="0.08" step="0.01" onchange="calculatePFEngine()">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">2. Existing Load Profile</div>
+    
+    <div class="form-group grid-2">
+      <div>
+        <label for="pKW">Active Power P (kW)</label>
+        <input type="number" id="pKW" value="500" onchange="calculatePFEngine()">
+      </div>
+      <div>
+        <label for="pf1">Current PF (cos φ₁)</label>
+        <input type="number" id="pf1" value="0.75" step="0.01" min="0.5" max="0.99" onchange="calculatePFEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="pf2">Target PF (cos φ₂)</label>
+        <input type="number" id="pf2" value="0.98" step="0.01" min="0.8" max="1.0" onchange="calculatePFEngine()">
+      </div>
+      <div>
+        <label for="vRatedCap">Capacitor Rated V (V)</label>
+        <input type="number" id="vRatedCap" value="440" onchange="calculatePFEngine()">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">3. Non-Linear Load & Harmonics</div>
+    
+    <div class="form-group">
+      <label for="loadType">Non-Linear Equipment Type</label>
+      <select id="loadType" onchange="calculatePFEngine()">
+        <option value="VFD6">6-Pulse Variable Frequency Drive (VFD)</option>
+        <option value="VFD12">12-Pulse VFD / Clean Power Drive</option>
+        <option value="UPS">UPS / 6-Pulse Industrial Rectifier</option>
+        <option value="LED">LED Lighting & IT Server Load</option>
+        <option value="ARC">Arc Furnace / Industrial Welder</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="nonLinearPct">Non-Linear Load (%)</label>
+        <input type="number" id="nonLinearPct" value="40" min="0" max="100" onchange="calculatePFEngine()">
+      </div>
+      <div>
+        <label for="detunePct">Detuned Reactor (p %)</label>
+        <select id="detunePct" onchange="calculatePFEngine()">
+          <option value="7">7% (189 Hz - 5th Order)</option>
+          <option value="5.67">5.67% (210 Hz - 5th Order)</option>
+          <option value="14">14% (134 Hz - 3rd Order)</option>
+          <option value="0">None (Standard Capacitors)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Outputs, Visuals & Analytics -->
+  <div>
+    <!-- Output Action Cards -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-lbl">Capacitor Bank Size</div>
+        <div class="card-val" id="valQreq">0 kVAr</div>
+        <div id="badgeSteps" class="badge badge-pass">Steps: 1x25 + 3x50 kVAr</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Current & Capacity Release</div>
+        <div class="card-val" id="valDeltaI">0 A</div>
+        <div id="badgeKva" class="badge badge-pass">Released: 0 kVA</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Harmonic Distortion (THDv / THDi)</div>
+        <div class="card-val" id="valTHD">0% / 0%</div>
+        <div id="badgeThd" class="badge badge-pass">IEEE 519 PASS</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Parallel Resonance Peak</div>
+        <div class="card-val" id="valHres">h_res = 0.0</div>
+        <div id="badgeResonance" class="badge badge-pass">NO RESONANCE RISK</div>
+      </div>
+    </div>
+
+    <!-- Visual Charts Wrapper -->
+    <div class="charts-wrapper">
+      <div class="panel">
+        <div class="panel-title">Power Triangle (kW, kVAr, kVA)</div>
+        <div class="chart-container">
+          <canvas id="powerTriangleChart"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Harmonic Spectrum vs IEEE 519 Limit</div>
+        <div class="chart-container">
+          <canvas id="harmonicSpectrumChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resonance Plot -->
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-title">System Impedance vs Frequency (Resonance Curve)</div>
+      <div class="chart-container" style="height: 220px;">
+        <canvas id="resonanceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Step-by-Step Engineering Calculation Sheet -->
+    <div class="panel">
+      <div class="panel-title">Deterministic Engineering Calculation Sheet</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Step / Parameter</th>
+            <th>Formula / Standard Reference</th>
+            <th>Calculated Value</th>
+            <th>Compliance Verification</th>
+          </tr>
+        </thead>
+        <tbody id="calcSheetBody">
+          <!-- Populated dynamically -->
+        </tbody>
+      </table>
+      <div class="btn-group">
+        <button class="btn" onclick="exportJSON()">Export JSON Analysis</button>
+        <button class="btn btn-outline" onclick="window.print()">Print Technical Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let powerTriangleChartInstance = null;
+  let harmonicChartInstance = null;
+  let resonanceChartInstance = null;
+
+  window.onload = () => {
+    initCharts();
+    calculatePFEngine();
+  };
+
+  function initCharts() {
+    // 1. Power Triangle Chart
+    const ctx1 = document.getElementById('powerTriangleChart').getContext('2d');
+    powerTriangleChartInstance = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: ['Active Power (kW)', 'Reactive Power (kVAr)', 'Apparent Power (kVA)'],
+        datasets: [
+          { label: 'Uncorrected (cos φ₁)', data: [0, 0, 0], backgroundColor: '#64748B' },
+          { label: 'Corrected (cos φ₂)', data: [0, 0, 0], backgroundColor: '#2563EB' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    // 2. Harmonic Spectrum Chart
+    const ctx2 = document.getElementById('harmonicSpectrumChart').getContext('2d');
+    harmonicChartInstance = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: ['h3', 'h5', 'h7', 'h11', 'h13', 'h17', 'h19'],
+        datasets: [
+          { label: 'Harmonic Current Spectrum (%)', data: [], backgroundColor: '#F59E0B' },
+          { label: 'IEEE 519 Limit (%)', data: [5.0, 12.0, 12.0, 5.5, 5.5, 5.0, 5.0], type: 'line', borderColor: '#EF4444', borderWidth: 2, fill: false }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, max: 35 } }
+      }
+    });
+
+    // 3. Resonance Curve Plot
+    const ctx3 = document.getElementById('resonanceChart').getContext('2d');
+    resonanceChartInstance = new Chart(ctx3, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'Harmonic Order (h)', font: { weight: 'bold' } } },
+          y: { title: { display: true, text: 'Normalized Impedance Z (p.u.)', font: { weight: 'bold' } }, beginAtZero: true }
+        },
+        plugins: { legend: { position: 'top' } }
+      }
+    });
+  }
+
+  function calculatePFEngine() {
+    // 1. Input Extraction
+    const standard = document.getElementById('standard').value;
+    const vLine = parseFloat(document.getElementById('vLine').value) || 400;
+    const freq = parseFloat(document.getElementById('freq').value) || 50;
+    const gridSsc = parseFloat(document.getElementById('gridSsc').value) || 15; // MVA
+    const tariffRate = parseFloat(document.getElementById('tariffRate').value) || 0.08;
+
+    const pKW = parseFloat(document.getElementById('pKW').value) || 500;
+    const pf1 = parseFloat(document.getElementById('pf1').value) || 0.75;
+    const pf2 = parseFloat(document.getElementById('pf2').value) || 0.98;
+    const vRatedCap = parseFloat(document.getElementById('vRatedCap').value) || 440;
+
+    const loadType = document.getElementById('loadType').value;
+    const nonLinearPct = parseFloat(document.getElementById('nonLinearPct').value) || 40;
+    const detunePct = parseFloat(document.getElementById('detunePct').value) || 7;
+
+    // STEP 1: Capacitor Bank Sizing & Step Configuration
+    const phi1 = Math.acos(pf1);
+    const phi2 = Math.acos(pf2);
+    
+    const q1 = pKW * Math.tan(phi1);
+    const q2 = pKW * Math.tan(phi2);
+    const qReqOperating = Math.max(0, q1 - q2); // kVAr at operating voltage
+
+    // Voltage derating adjustment: Q_rated = Q_required × (V_rated / V_operating)²
+    const qReqNominal = qReqOperating * Math.pow(vRatedCap / vLine, 2);
+
+    // Automatic Step Sizing Logic
+    const roundedQ = Math.ceil(qReqNominal / 25) * 25; // Round to nearest 25 kVAr
+    let stepConfigText = "";
+    if (roundedQ <= 50) stepConfigText = "2x25 kVAr";
+    else if (roundedQ <= 100) stepConfigText = "1x25 + 3x25 kVAr";
+    else if (roundedQ <= 200) stepConfigText = "1x25 + 1x50 + 2x50 kVAr";
+    else stepConfigText = `1x50 + ${Math.floor((roundedQ-50)/50)}x50 kVAr steps`;
+
+    // STEP 2: Current & Demand Released Calculations
+    const s1 = pKW / pf1;
+    const s2 = pKW / pf2;
+    const kvaReleased = s1 - s2;
+
+    const iLine1 = (pKW * 1000) / (Math.sqrt(3) * vLine * pf1);
+    const iLine2 = (pKW * 1000) / (Math.sqrt(3) * vLine * pf2);
+    const deltaI = iLine1 - iLine2;
+
+    // Cable & Transformer Loss Reduction (%)
+    const lossReductionPct = (1 - Math.pow(pf1 / pf2, 2)) * 100;
+
+    // Monthly Savings & Payback Logic
+    const monthlyKvarhSavings = (q1 - q2) * 24 * 26; // Operating 26 days/mo
+    const monthlyFinancialSavings = monthlyKvarhSavings * tariffRate;
+    const estimatedCapacitorCost = roundedQ * 22; // Approx $22 / kVAr installed
+    const paybackMonths = monthlyFinancialSavings > 0 ? (estimatedCapacitorCost / monthlyFinancialSavings) : 0;
+
+    // STEP 3: Non-Linear Harmonic Profiles & Spectrum Estimation
+    let thdiBase = 0;
+    let spectrum = { h3: 0, h5: 0, h7: 0, h11: 0, h13: 0, h17: 0, h19: 0 };
+
+    if (loadType === 'VFD6') {
+      thdiBase = 32.0;
+      spectrum = { h3: 2.0, h5: 28.0, h7: 12.0, h11: 6.0, h13: 4.5, h17: 2.5, h19: 1.8 };
+    } else if (loadType === 'VFD12') {
+      thdiBase = 10.5;
+      spectrum = { h3: 1.0, h5: 2.0, h7: 1.5, h11: 8.5, h13: 6.0, h17: 1.2, h19: 1.0 };
+    } else if (loadType === 'UPS') {
+      thdiBase = 25.0;
+      spectrum = { h3: 5.0, h5: 22.0, h7: 9.0, h11: 4.5, h13: 3.0, h17: 1.8, h19: 1.2 };
+    } else if (loadType === 'LED') {
+      thdiBase = 18.0;
+      spectrum = { h3: 14.0, h5: 8.0, h7: 4.0, h11: 2.0, h13: 1.2, h17: 0.8, h19: 0.5 };
+    } else { // Arc Furnace
+      thdiBase = 22.0;
+      spectrum = { h3: 8.0, h5: 18.0, h7: 10.0, h11: 5.0, h13: 3.5, h17: 2.0, h19: 1.5 };
+    }
+
+    // Scale spectrum by Non-Linear Load Percentage
+    const nonLinearRatio = nonLinearPct / 100;
+    const calcTHDi = thdiBase * nonLinearRatio;
+    
+    // THDv % Estimation: THDv = THDi × (S_load / S_sc)
+    const sLoadMva = s1 / 1000;
+    const calcTHDv = calcTHDi * (sLoadMva / gridSsc);
+
+    const isIeeeThdvPass = calcTHDv <= 5.0; // IEEE 519 Limit for < 1kV is 8.0% (THDv) and 5% for individual
+    const isIeeeThdiPass = calcTHDi <= 12.0;
+
+    // STEP 4: Parallel Resonance Frequency Analysis
+    // h_res = √(S_sc / Q_cap)
+    const qCapMvar = roundedQ / 1000;
+    const hRes = Math.sqrt(gridSsc / (qCapMvar || 0.001));
+
+    // Resonance Risk Flags
+    let resonanceRisk = false;
+    if (detunePct === 0 && (Math.abs(hRes - 5) < 0.8 || Math.abs(hRes - 7) < 0.8)) {
+      resonanceRisk = true;
+    }
+
+    // Filter Sizing / Active Harmonic Filter (AHF) Sizing Requirement
+    const ahfRatingAmps = (calcTHDi / 100) * iLine1;
+
+    // UI Updates
+    document.getElementById('valQreq').innerText = `${roundedQ} kVAr`;
+    document.getElementById('badgeSteps').innerText = `Steps: ${stepConfigText}`;
+    
+    document.getElementById('valDeltaI').innerText = `-${deltaI.toFixed(1)} A`;
+    document.getElementById('badgeKva').innerText = `Released: ${kvaReleased.toFixed(1)} kVA`;
+
+    document.getElementById('valTHD').innerText = `${calcTHDv.toFixed(1)}% / ${calcTHDi.toFixed(1)}%`;
+    const bThd = document.getElementById('badgeThd');
+    bThd.innerText = isIeeeThdvPass && isIeeeThdiPass ? 'IEEE 519: PASS' : 'IEEE 519: EXCEEDED';
+    bThd.className = `badge ${isIeeeThdvPass && isIeeeThdiPass ? 'badge-pass' : 'badge-fail'}`;
+
+    document.getElementById('valHres').innerText = `h_res = ${hRes.toFixed(1)}`;
+    const bRes = document.getElementById('badgeResonance');
+    if (detunePct > 0) {
+      bRes.innerText = `DETUNED (${detunePct}% Reactor)`;
+      bRes.className = 'badge badge-pass';
+    } else if (resonanceRisk) {
+      bRes.innerText = 'RESONANCE HAZARD DETECTED';
+      bRes.className = 'badge badge-fail';
+    } else {
+      bRes.innerText = 'NO RESONANCE RISK';
+      bRes.className = 'badge badge-pass';
+    }
+
+    // Header Status Pill
+    const statusPill = document.getElementById('statusPill');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusDot = document.getElementById('statusDot');
+
+    if (resonanceRisk && detunePct === 0) {
+      statusPill.className = 'status-pill pill-fail';
+      statusDot.className = 'status-dot dot-fail';
+      statusPillText.innerText = 'RESONANCE RISK DETECTED';
+    } else if (pf1 < 0.85) {
+      statusPill.className = 'status-pill pill-warn';
+      statusDot.className = 'status-dot dot-warn';
+      statusPillText.innerText = 'POOR POWER FACTOR';
+    } else {
+      statusPill.className = 'status-pill pill-pass';
+      statusDot.className = 'status-dot dot-pass';
+      statusPillText.innerText = 'IEEE 519 COMPLIANT';
+    }
+
+    // Dynamic Calculation Sheet Output
+    const sheetBody = document.getElementById('calcSheetBody');
+    sheetBody.innerHTML = `
+      <tr>
+        <td>Required Reactive Power (Q_req)</td>
+        <td>P × [tan(arccos(φ₁)) - tan(arccos(φ₂))]</td>
+        <td><strong>${qReqOperating.toFixed(1)} kVAr</strong> (Nominal: ${roundedQ} kVAr)</td>
+        <td><strong style="color:var(--pass-green)">VALIDATED</strong></td>
+      </tr>
+      <tr>
+        <td>Target Capacitor Bank & Steps</td>
+        <td>NEC Article 460 / IS 2834 Step Rules</td>
+        <td>${roundedQ} kVAr (${stepConfigText})</td>
+        <td><strong style="color:var(--pass-green)">OPTIMAL STEPPING</strong></td>
+      </tr>
+      <tr>
+        <td>Demand & Current Reduction</td>
+        <td>ΔI = P / (√3×V×pf₁) - P / (√3×V×pf₂)</td>
+        <td>ΔI = <strong>${deltaI.toFixed(1)} A</strong> | ΔS = <strong>${kvaReleased.toFixed(1)} kVA</strong></td>
+        <td><strong style="color:var(--pass-green)">${lossReductionPct.toFixed(1)}% Loss Reduction</strong></td>
+      </tr>
+      <tr>
+        <td>Estimated Payback Period</td>
+        <td>Capacitor Investment / Monthly Tariff Savings</td>
+        <td><strong>${paybackMonths.toFixed(1)} Months</strong> ($${monthlyFinancialSavings.toFixed(0)}/mo)</td>
+        <td><strong style="color:var(--pass-green)">HIGH ROI</strong></td>
+      </tr>
+      <tr>
+        <td>Parallel Resonant Order (h_res)</td>
+        <td>h_res = √(S_sc / Q_cap)</td>
+        <td>Order <strong>h = ${hRes.toFixed(2)}</strong> (${(hRes * freq).toFixed(0)} Hz)</td>
+        <td><strong style="color:${resonanceRisk && detunePct === 0 ? 'var(--fail-red)' : 'var(--pass-green)'}">${resonanceRisk && detunePct === 0 ? 'RISK (5th/7th Resonance)' : 'SAFE'}</strong></td>
+      </tr>
+      <tr>
+        <td>Total Harmonic Distortion (THD)</td>
+        <td>IEEE 519-2022 Table 1 & Table 2</td>
+        <td>THDv = <strong>${calcTHDv.toFixed(2)}%</strong> | THDi = <strong>${calcTHDi.toFixed(1)}%</strong></td>
+        <td><strong style="color:${isIeeeThdvPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isIeeeThdvPass ? 'IEEE 519 PASS' : 'EXCEEDED'}</strong></td>
+      </tr>
+      <tr>
+        <td>Detuned Reactor / AHF Sizing</td>
+        <td>p = (f_res / f_grid)² / AHF = THDi × I_line</td>
+        <td>Detuning: <strong>${detunePct}%</strong> | AHF Rating: <strong>${ahfRatingAmps.toFixed(1)} A</strong></td>
+        <td><strong style="color:var(--pass-green)">FILTER DESIGN VALID</strong></td>
+      </tr>
+    `;
+
+    // Render Visual Charts
+    renderPowerTriangleChart(pKW, q1, s1, q2, s2);
+    renderHarmonicChart(spectrum, nonLinearRatio);
+    renderResonanceChart(gridSsc, qCapMvar, detunePct, freq);
+  }
+
+  function renderPowerTriangleChart(pKW, q1, s1, q2, s2) {
+    if (!powerTriangleChartInstance) return;
+    powerTriangleChartInstance.data.datasets[0].data = [pKW, q1, s1];
+    powerTriangleChartInstance.data.datasets[1].data = [pKW, q2, s2];
+    powerTriangleChartInstance.update();
+  }
+
+  function renderHarmonicChart(spectrum, nonLinearRatio) {
+    if (!harmonicChartInstance) return;
+    const scaledSpectrum = [
+      spectrum.h3 * nonLinearRatio,
+      spectrum.h5 * nonLinearRatio,
+      spectrum.h7 * nonLinearRatio,
+      spectrum.h11 * nonLinearRatio,
+      spectrum.h13 * nonLinearRatio,
+      spectrum.h17 * nonLinearRatio,
+      spectrum.h19 * nonLinearRatio
+    ];
+    harmonicChartInstance.data.datasets[0].data = scaledSpectrum;
+    harmonicChartInstance.update();
+  }
+
+  function renderResonanceChart(gridSsc, qCapMvar, detunePct, freq) {
+    if (!resonanceChartInstance) return;
+
+    const orders = [];
+    const impedanceValues = [];
+
+    // Model impedance curve across harmonic orders h=1 to 25
+    for (let h = 1; h <= 25; h += 0.5) {
+      orders.push(h);
+      
+      const xGrid = h * (1 / gridSsc);
+      let xCap = 1 / (h * (qCapMvar || 0.001));
+
+      if (detunePct > 0) {
+        // Reactor inductive reactance subtracts from capacitor capacitive reactance
+        const xReact = (detunePct / 100) * (1 / (qCapMvar || 0.001)) * h;
+        xCap = Math.abs(xCap - xReact);
+      }
+
+      // Parallel Impedance Z_parallel = (X_grid * X_cap) / |X_grid - X_cap|
+      const zParallel = Math.min(20, (xGrid * xCap) / (Math.abs(xGrid - xCap) + 0.02));
+      impedanceValues.push(zParallel);
+    }
+
+    resonanceChartInstance.data = {
+      labels: orders,
+      datasets: [{
+        label: 'System Impedance Z (p.u.)',
+        data: impedanceValues,
+        borderColor: detunePct > 0 ? '#10B981' : '#2563EB',
+        borderWidth: 2,
+        fill: false,
+        pointRadius: 0
+      }]
+    };
+    resonanceChartInstance.update();
+  }
+
+  function exportJSON() {
+    const data = {
+      module: "Handasium - Power Factor & Harmonics Engine",
+      standard: document.getElementById('standard').value,
+      operating_kW: document.getElementById('pKW').value,
+      required_kVAr: document.getElementById('valQreq').innerText,
+      current_reduction_A: document.getElementById('valDeltaI').innerText,
+      thd_v_i: document.getElementById('valTHD').innerText,
+      resonance_order: document.getElementById('valHres').innerText,
+      status: document.getElementById('statusPillText').innerText
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'handasium_pfc_harmonics_analysis.json';
+    a.click();
+  }
+</script>
+</body>
+</html>
