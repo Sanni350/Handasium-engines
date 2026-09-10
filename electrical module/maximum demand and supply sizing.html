@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handasium - Demand & Supply Sizing Engine with Ambient Derating</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --accent-blue: #0284c7;
+            --accent-blue-hover: #0369a1;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #475569;
+            --phase-r: #ef4444;
+            --phase-y: #eab308;
+            --phase-b: #3b82f6;
+            --pass-green: #22c55e;
+            --warn-amber: #f59e0b;
+            --code-purple: #8b5cf6;
+            --temp-orange: #f97316;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 span {
+            color: var(--accent-blue);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            border: 1px solid var(--accent-blue);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .code-selector-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid var(--code-purple);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        .code-selector-container label {
+            font-weight: 700;
+            color: var(--code-purple);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .code-selector-container select {
+            background: var(--bg-card);
+            border: 1px solid var(--code-purple);
+            color: #ffffff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .summary-card .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .summary-card .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 4px;
+            width: fit-content;
+        }
+
+        .badge.pass { background: rgba(34, 197, 94, 0.2); color: var(--pass-green); border: 1px solid var(--pass-green); }
+        .badge.warn { background: rgba(245, 158, 11, 0.2); color: var(--warn-amber); border: 1px solid var(--warn-amber); }
+        .badge.code { background: rgba(139, 92, 246, 0.2); color: var(--code-purple); border: 1px solid var(--code-purple); }
+        .badge.temp { background: rgba(249, 115, 22, 0.2); color: var(--temp-orange); border: 1px solid var(--temp-orange); }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media(max-width: 950px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #ffffff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        input, select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-group input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--temp-orange);
+            cursor: pointer;
+        }
+
+        .slider-val {
+            font-weight: 700;
+            color: var(--temp-orange);
+            min-width: 75px;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+
+        .equipment-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        @media(max-width: 900px) {
+            .equipment-cards { grid-template-columns: 1fr; }
+        }
+
+        .eq-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .eq-card h3 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .eq-card .result-val {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--accent-blue);
+        }
+
+        .eq-card .sub-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: var(--bg-input);
+            padding: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        table input, table select {
+            width: 100%;
+            padding: 6px;
+        }
+
+        .btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: var(--accent-blue-hover); }
+
+        .btn-danger {
+            background: #dc2626;
+            padding: 6px 10px;
+        }
+        .btn-danger:hover { background: #b91c1c; }
+
+        .btn-secondary {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover { background: var(--border-color); }
+
+        .phase-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .phase-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .phase-label {
+            width: 70px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .bar-container {
+            flex-grow: 1;
+            background: var(--bg-input);
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .bar-r { background: var(--phase-r); }
+        .bar-y { background: var(--phase-y); }
+        .bar-b { background: var(--phase-b); }
+
+        .phase-val {
+            width: 80px;
+            text-align: right;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+        }
+
+        summary {
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--accent-blue);
+            outline: none;
+        }
+
+        .calc-sheet {
+            margin-top: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            background: var(--bg-dark);
+            padding: 16px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            border: 1px solid var(--border-color);
+        }
+
+        .actions-footer {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .btn, .actions-footer, .code-selector-container { display: none; }
+            .panel, .summary-card, .eq-card { border: 1px solid #ccc; background: white; color: black; }
+            .calc-sheet { background: #f5f5f5; color: black; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Handasium <span>Sizing Engine</span></h1>
+        
+        <div class="code-selector-container">
+            <label for="code-standard">Active Standard Code:</label>
+            <select id="code-standard" onchange="handleStandardChange()">
+                <option value="BS7671">BS 7671 (UK / Commonwealth)</option>
+                <option value="IEC60364">IEC 60364 (International / Europe)</option>
+                <option value="NEC">NEC / NFPA 70 (US / North America)</option>
+                <option value="IS">IS 732 / IS 1255 (India Standard)</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Top Status Bar -->
+    <div class="summary-bar">
+        <div class="summary-card">
+            <span class="label">Governing Code</span>
+            <div id="ui-code-badge" class="badge code">BS 7671 Edition 18</div>
+            <span style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;" id="ui-freq-info">50 Hz System</span>
+        </div>
+        <div class="summary-card">
+            <span class="label">Ambient & Derating (Ca)</span>
+            <div id="ui-temp-badge" class="badge temp">30°C (Ca = 1.00)</div>
+            <span style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;" id="ui-clause-ref">BS 7671 Tab 4B1</span>
+        </div>
+        <div class="summary-card">
+            <span class="label">Diversified Peak Demand</span>
+            <span class="value" id="ui-diversified-demand" style="color:var(--accent-blue);">0.0 kVA</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);" id="ui-diversified-kw">(0.0 kW)</span>
+        </div>
+        <div class="summary-card">
+            <span class="label">Thermal Capacity (Iz)</span>
+            <span class="value" id="ui-iz-required">0.0 A</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);" id="ui-ib-raw">Raw Ib: 0.0 A</span>
+        </div>
+        <div class="summary-card">
+            <span class="label">Phase Imbalance</span>
+            <span class="value" id="ui-imbalance-pct">0.0%</span>
+            <div id="ui-imbalance-badge" class="badge pass">BALANCED</div>
+        </div>
+    </div>
+
+    <!-- Configuration Grid -->
+    <div class="grid-2">
+        <div class="panel">
+            <div class="panel-title">1. System & Thermal Environment Control</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label for="facility-type">Facility Profile</label>
+                    <select id="facility-type" onchange="calculateDemand()">
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial Office" selected>Commercial Office</option>
+                        <option value="Retail">Retail Store</option>
+                        <option value="Educational">Educational Institution</option>
+                        <option value="Industrial">Industrial Plant</option>
+                        <option value="Hospital">Hospital / Healthcare</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="system-voltage">Nominal Voltage Configuration</label>
+                    <select id="system-voltage" onchange="calculateDemand()"></select>
+                </div>
+
+                <!-- Ambient Temperature Control -->
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="ambient-temp">Ambient Operating Temperature</label>
+                    <div class="slider-group">
+                        <input type="range" id="ambient-temp" min="20" max="60" step="1" value="30" oninput="syncTempDisplay(this.value)" onchange="calculateDemand()">
+                        <div class="slider-val" id="temp-display">30°C / 86°F</div>
+                    </div>
+                </div>
+
+                <!-- Cable Insulation Selection -->
+                <div class="form-group">
+                    <label for="insulation-type">Cable Insulation Thermal Rating</label>
+                    <select id="insulation-type" onchange="calculateDemand()">
+                        <option value="70C" selected>70°C Thermoplastic (PVC)</option>
+                        <option value="90C">90°C Thermosetting (XLPE / EPR)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="target-pf">Target System Power Factor</label>
+                    <input type="number" id="target-pf" value="0.85" step="0.01" min="0.5" max="1.0" onchange="calculateDemand()">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="interlock-ac">HVAC Interlock Rule</label>
+                    <select id="interlock-ac" onchange="calculateDemand()">
+                        <option value="true">Active (Heating & Cooling Interlocked)</option>
+                        <option value="false">Inactive (Simultaneous Run Allowed)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">2. Phase Load Distribution Engine</div>
+            <div class="phase-bars">
+                <div class="phase-row">
+                    <span class="phase-label" id="phase-lbl-r" style="color:var(--phase-r);">Phase A / R</span>
+                    <div class="bar-container"><div id="bar-r" class="bar-fill bar-r"></div></div>
+                    <span class="phase-val" id="val-r">0.0 kVA</span>
+                </div>
+                <div class="phase-row">
+                    <span class="phase-label" id="phase-lbl-y" style="color:var(--phase-y);">Phase B / Y</span>
+                    <div class="bar-container"><div id="bar-y" class="bar-fill bar-y"></div></div>
+                    <span class="phase-val" id="val-y">0.0 kVA</span>
+                </div>
+                <div class="phase-row">
+                    <span class="phase-label" id="phase-lbl-b" style="color:var(--phase-b);">Phase C / B</span>
+                    <div class="bar-container"><div id="bar-b" class="bar-fill bar-b"></div></div>
+                    <span class="phase-val" id="val-b">0.0 kVA</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Cards: Thermal Derated Sizing Outputs -->
+    <div class="equipment-cards">
+        <div class="eq-card">
+            <h3>Main Incomer Breaker</h3>
+            <div class="result-val" id="res-incomer">0 A</div>
+            <div class="sub-text" id="res-incomer-sub">In Rating (Thermal Derated Iz)</div>
+        </div>
+        <div class="eq-card">
+            <h3>Substation Transformer</h3>
+            <div class="result-val" id="res-transformer">0 kVA</div>
+            <div class="sub-text" id="res-transformer-sub">Recommended Size</div>
+        </div>
+        <div class="eq-card">
+            <h3>Standby Genset Capacity</h3>
+            <div class="result-val" id="res-genset">0 kVA</div>
+            <div class="sub-text">Prime Rating (Surge Factored)</div>
+        </div>
+    </div>
+
+    <!-- Load Schedule Table Panel -->
+    <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div class="panel-title" style="margin:0; border:none;">3. Connected Load Schedule</div>
+            <button class="btn" onclick="addRow()">+ Add Circuit Load</button>
+        </div>
+
+        <div class="table-container">
+            <table id="load-table">
+                <thead>
+                    <tr>
+                        <th>Circuit / Load Name</th>
+                        <th>Load Category</th>
+                        <th>Value</th>
+                        <th>Unit</th>
+                        <th>Cos φ</th>
+                        <th>Phase</th>
+                        <th class="nec-only-col" style="display:none;">Continuous Load (≥ 3hrs)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="load-tbody">
+                    <!-- Dynamic Rows Insertion -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Calculation Trace & References -->
+    <details>
+        <summary>View Engineering Calculation Trace & Thermal Derating Sheet</summary>
+        <div class="calc-sheet" id="calc-trace-output">
+            System initialization completed. Waiting for calculations...
+        </div>
+    </details>
+
+    <!-- Data Actions -->
+    <div class="actions-footer">
+        <button class="btn btn-secondary" onclick="exportData('json')">Export JSON</button>
+        <button class="btn btn-secondary" onclick="exportData('csv')">Export CSV</button>
+        <button class="btn" onclick="window.print()">Print / PDF Engineering Report</button>
+    </div>
+
+    <script>
+        // Standard Breaker Catalogs
+        const CATALOGS = {
+            IEC: {
+                breakers: [63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000],
+                transformers: [100, 160, 250, 315, 400, 500, 630, 800, 1000, 1250, 1500, 2000, 2500, 3150]
+            },
+            NEMA: {
+                breakers: [15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 800, 1000, 1200, 1600, 2000, 2500, 3000, 4000],
+                transformers: [45, 75, 112.5, 150, 225, 300, 500, 750, 1000, 1500, 2000, 2500]
+            }
+        };
+
+        const STANDARD_GENSETS = [50, 75, 100, 150, 200, 250, 300, 400, 500, 650, 800, 1000, 1250, 1500, 2000];
+
+        // System Presets
+        const CODE_PRESETS = {
+            BS7671: {
+                name: "BS 7671 Edition 18 (UK / Commonwealth)",
+                freq: "50 Hz System",
+                ambientDefault: 30,
+                voltages: [
+                    { text: "400V 3-Phase / 230V 1-Phase", line: 400 },
+                    { text: "230V Single Phase", line: 230 }
+                ],
+                catalogType: "IEC",
+                phaseLabels: ["Phase R", "Phase Y", "Phase B"],
+                clauseRef: "BS 7671 Table 4B1"
+            },
+            IEC60364: {
+                name: "IEC 60364 (International / Europe)",
+                freq: "50 Hz System",
+                ambientDefault: 30,
+                voltages: [
+                    { text: "400V 3-Phase / 230V 1-Phase", line: 400 },
+                    { text: "690V 3-Phase (Industrial)", line: 690 },
+                    { text: "230V Single Phase", line: 230 }
+                ],
+                catalogType: "IEC",
+                phaseLabels: ["Phase L1", "Phase L2", "Phase L3"],
+                clauseRef: "IEC 60364-5-52 Tab B.52.14"
+            },
+            NEC: {
+                name: "NEC / NFPA 70 (2023 Edition)",
+                freq: "60 Hz System",
+                ambientDefault: 30,
+                voltages: [
+                    { text: "480V 3-Phase / 277V 1-Phase", line: 480 },
+                    { text: "208V 3-Phase / 120V 1-Phase", line: 208 },
+                    { text: "240V 1-Phase / 120V Center-Tap", line: 240 }
+                ],
+                catalogType: "NEMA",
+                phaseLabels: ["Phase A", "Phase B", "Phase C"],
+                clauseRef: "NEC Table 310.15(B)(1)"
+            },
+            IS: {
+                name: "IS 732 / IS 1255 (Bureau of Indian Standards)",
+                freq: "50 Hz System",
+                ambientDefault: 40,
+                voltages: [
+                    { text: "415V 3-Phase / 240V 1-Phase", line: 415 },
+                    { text: "230V Single Phase", line: 230 }
+                ],
+                catalogType: "IEC",
+                phaseLabels: ["Phase R", "Phase Y", "Phase B"],
+                clauseRef: "IS 732 Appendix E Matrix"
+            }
+        };
+
+        // Standard Ambient Correction Factor (Ca) Lookup Tables
+        const CA_LOOKUP = {
+            BS7671: {
+                '70C': { 25: 1.03, 30: 1.00, 35: 0.94, 40: 0.87, 45: 0.79, 50: 0.71, 55: 0.61, 60: 0.50 },
+                '90C': { 25: 1.02, 30: 1.00, 35: 0.96, 40: 0.91, 45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71 }
+            },
+            IEC60364: {
+                '70C': { 25: 1.03, 30: 1.00, 35: 0.94, 40: 0.87, 45: 0.79, 50: 0.71, 55: 0.61, 60: 0.50 },
+                '90C': { 25: 1.02, 30: 1.00, 35: 0.96, 40: 0.91, 45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71 }
+            },
+            NEC: {
+                // Base 30°C Table 310.15(B)(1)
+                '70C': { 25: 1.08, 30: 1.00, 35: 0.91, 40: 0.82, 45: 0.71, 50: 0.58, 55: 0.41, 60: 0.00 },
+                '90C': { 25: 1.04, 30: 1.00, 35: 0.96, 40: 0.91, 45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71 }
+            },
+            IS: {
+                // Base 40°C Rating Standard Matrix
+                '70C': { 25: 1.18, 30: 1.12, 35: 1.06, 40: 1.00, 45: 0.90, 50: 0.79, 55: 0.66, 60: 0.50 },
+                '90C': { 25: 1.14, 30: 1.10, 35: 1.05, 40: 1.00, 45: 0.94, 50: 0.88, 55: 0.81, 60: 0.74 }
+            }
+        };
+
+        // Load Schedule Seed Data
+        let loadItems = [
+            { id: 1, name: "Main Office Lighting Array", category: "Lighting", value: 18, unit: "kW", pf: 0.9, phase: "3P", isContinuous: true },
+            { id: 2, name: "Workstation Sockets (Ring Main)", category: "Small Power", value: 45, unit: "kW", pf: 0.85, phase: "3P", isContinuous: false },
+            { id: 3, name: "Central Chiller HVAC Plant", category: "HVAC", value: 60, unit: "kW", pf: 0.82, phase: "3P", isContinuous: true },
+            { id: 4, name: "Passenger Lift Motor 1", category: "Lifts", value: 22, unit: "kW", pf: 0.80, phase: "3P", isContinuous: false },
+            { id: 5, name: "Passenger Lift Motor 2", category: "Lifts", value: 22, unit: "kW", pf: 0.80, phase: "3P", isContinuous: false },
+            { id: 6, name: "Data Center UPS Charger", category: "Motors/Machinery", value: 30, unit: "kW", pf: 0.95, phase: "3P", isContinuous: true },
+            { id: 7, name: "Executive Kitchenette Cooker", category: "Cooking", value: 12, unit: "kW", pf: 0.95, phase: "R", isContinuous: false },
+            { id: 8, name: "Commercial EV Fast Charger", category: "EV Chargers", value: 22, unit: "kW", pf: 0.98, phase: "3P", isContinuous: true }
+        ];
+
+        function syncTempDisplay(val) {
+            let fahrenheit = Math.round((val * 9/5) + 32);
+            document.getElementById("temp-display").innerText = `${val}°C / ${fahrenheit}°F`;
+        }
+
+        function getCaFactor(code, insulation, temp) {
+            let table = CA_LOOKUP[code] ? CA_LOOKUP[code][insulation] : CA_LOOKUP['BS7671']['70C'];
+            let temps = Object.keys(table).map(Number).sort((a,b)=>a-b);
+            
+            if (temp <= temps[0]) return table[temps[0]];
+            if (temp >= temps[temps.length - 1]) return table[temps[temps.length - 1]];
+
+            // Linear Interpolation for off-step temperatures
+            for (let i = 0; i < temps.length - 1; i++) {
+                if (temp >= temps[i] && temp <= temps[i+1]) {
+                    let t1 = temps[i], t2 = temps[i+1];
+                    let v1 = table[t1], v2 = table[t2];
+                    return v1 + ((temp - t1) / (t2 - t1)) * (v2 - v1);
+                }
+            }
+            return 1.0;
+        }
+
+        function handleStandardChange() {
+            const selectedCode = document.getElementById("code-standard").value;
+            const preset = CODE_PRESETS[selectedCode];
+
+            document.getElementById("ui-code-badge").innerText = preset.name;
+            document.getElementById("ui-freq-info").innerText = preset.freq;
+            document.getElementById("ui-clause-ref").innerText = preset.clauseRef;
+            
+            // Set regional ambient default
+            document.getElementById("ambient-temp").value = preset.ambientDefault;
+            syncTempDisplay(preset.ambientDefault);
+
+            // Update Phase Labels
+            document.getElementById("phase-lbl-r").innerText = preset.phaseLabels[0];
+            document.getElementById("phase-lbl-y").innerText = preset.phaseLabels[1];
+            document.getElementById("phase-lbl-b").innerText = preset.phaseLabels[2];
+
+            // Update System Voltage Options
+            const voltSelect = document.getElementById("system-voltage");
+            voltSelect.innerHTML = "";
+            preset.voltages.forEach((v, idx) => {
+                const opt = document.createElement("option");
+                opt.value = v.line;
+                opt.innerText = v.text;
+                if (idx === 0) opt.selected = true;
+                voltSelect.appendChild(opt);
+            });
+
+            // Toggle NEC-only table column
+            const necCols = document.querySelectorAll(".nec-only-col");
+            necCols.forEach(col => {
+                col.style.display = (selectedCode === "NEC") ? "table-cell" : "none";
+            });
+
+            renderTable();
+            calculateDemand();
+        }
+
+        function renderTable() {
+            const selectedCode = document.getElementById("code-standard").value;
+            const tbody = document.getElementById("load-tbody");
+            tbody.innerHTML = "";
+            loadItems.forEach((item, index) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><input type="text" value="${item.name}" onchange="updateItem(${index}, 'name', this.value)"></td>
+                    <td>
+                        <select onchange="updateItem(${index}, 'category', this.value)">
+                            ${['Lighting', 'Small Power', 'HVAC', 'Lifts', 'Pumps', 'Cooking', 'Motors/Machinery', 'EV Chargers', 'Spare'].map(c => 
+                                `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.1" value="${item.value}" onchange="updateItem(${index}, 'value', parseFloat(this.value) || 0)"></td>
+                    <td>
+                        <select onchange="updateItem(${index}, 'unit', this.value)">
+                            <option value="kW" ${item.unit === 'kW' ? 'selected' : ''}>kW</option>
+                            <option value="kVA" ${item.unit === 'kVA' ? 'selected' : ''}>kVA</option>
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" min="0.1" max="1.0" value="${item.pf}" onchange="updateItem(${index}, 'pf', parseFloat(this.value) || 0.85)"></td>
+                    <td>
+                        <select onchange="updateItem(${index}, 'phase', this.value)">
+                            <option value="3P" ${item.phase === '3P' ? 'selected' : ''}>3-Phase (Balanced)</option>
+                            <option value="R" ${item.phase === 'R' ? 'selected' : ''}>Phase A / R</option>
+                            <option value="Y" ${item.phase === 'Y' ? 'selected' : ''}>Phase B / Y</option>
+                            <option value="B" ${item.phase === 'B' ? 'selected' : ''}>Phase C / B</option>
+                        </select>
+                    </td>
+                    <td class="nec-only-col" style="display: ${selectedCode === 'NEC' ? 'table-cell' : 'none'}; text-align:center;">
+                        <input type="checkbox" ${item.isContinuous ? 'checked' : ''} onchange="updateItem(${index}, 'isContinuous', this.checked)">
+                    </td>
+                    <td><button class="btn btn-danger" onclick="deleteRow(${index})">✕</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function addRow() {
+            loadItems.push({ id: Date.now(), name: "New Circuit Load", category: "Small Power", value: 5, unit: "kW", pf: 0.85, phase: "3P", isContinuous: false });
+            renderTable();
+            calculateDemand();
+        }
+
+        function deleteRow(index) {
+            loadItems.splice(index, 1);
+            renderTable();
+            calculateDemand();
+        }
+
+        function updateItem(index, field, val) {
+            loadItems[index][field] = val;
+            calculateDemand();
+        }
+
+        function calculateDemand() {
+            const selectedCode = document.getElementById("code-standard").value;
+            const facilityType = document.getElementById("facility-type").value;
+            const sysVoltage = parseFloat(document.getElementById("system-voltage").value);
+            const ambientTemp = parseFloat(document.getElementById("ambient-temp").value) || 30;
+            const insulationType = document.getElementById("insulation-type").value;
+            const targetPF = parseFloat(document.getElementById("target-pf").value) || 0.85;
+            const acInterlock = document.getElementById("interlock-ac").value === "true";
+            const codePreset = CODE_PRESETS[selectedCode];
+
+            // Ambient Derating Factor Calculation
+            const Ca = getCaFactor(selectedCode, insulationType, ambientTemp);
+
+            let totalConnKW = 0;
+            let totalConnKVA = 0;
+            let totalContinuousKW = 0;
+            let totalNonContinuousKW = 0;
+
+            let categories = {};
+            let traceLog = `=====================================================================\n`;
+            traceLog += ` HANDASIUM DEMAND ENGINE - THERMAL DERATING & SIZING TRACE\n`;
+            traceLog += ` Governing Standard: ${codePreset.name}\n`;
+            traceLog += ` Clause Citation: ${codePreset.clauseRef}\n`;
+            traceLog += ` Design Ambient Temp: ${ambientTemp}°C | Insulation: ${insulationType}\n`;
+            traceLog += ` Derating Factor (Ca): ${Ca.toFixed(3)}\n`;
+            traceLog += `=====================================================================\n\n`;
+
+            loadItems.forEach(item => {
+                let kw = item.unit === 'kW' ? item.value : item.value * item.pf;
+                let kva = item.unit === 'kVA' ? item.value : (item.pf > 0 ? item.value / item.pf : item.value);
+
+                totalConnKW += kw;
+                totalConnKVA += kva;
+
+                if (item.isContinuous) totalContinuousKW += kw;
+                else totalNonContinuousKW += kw;
+
+                if (!categories[item.category]) categories[item.category] = [];
+                categories[item.category].push({ name: item.name, kw: kw, kva: kva, phase: item.phase, pf: item.pf, isContinuous: item.isContinuous });
+            });
+
+            let totalDiversifiedKW = 0;
+            let phaseKVA = { R: 0, Y: 0, B: 0 };
+
+            traceLog += `--- DIVERSITY DEDUCTIONS BY CATEGORY ---\n`;
+
+            for (let cat in categories) {
+                let list = categories[cat];
+                let catKw = list.reduce((a, b) => a + b.kw, 0);
+                let catDivKw = 0;
+
+                list.sort((a, b) => b.kw - a.kw);
+
+                if (selectedCode === "NEC") {
+                    if (cat === 'Lighting') {
+                        catDivKw = catKw <= 3 ? catKw : (catKw <= 120 ? 3 + (catKw - 3) * 0.35 : 3 + (117 * 0.35) + (catKw - 120) * 0.25);
+                    } else if (cat === 'Small Power') {
+                        let catKva = catKw / targetPF;
+                        catDivKw = (catKva <= 10 ? catKva : 10 + (catKva - 10) * 0.50) * targetPF;
+                    } else if (cat === 'Motors/Machinery' || cat === 'Pumps') {
+                        catDivKw = (list[0].kw * 1.25) + list.slice(1).reduce((a, b) => a + b.kw, 0);
+                    } else {
+                        catDivKw = catKw * 0.80;
+                    }
+                } else if (selectedCode === "IS") {
+                    if (cat === 'Lighting') catDivKw = catKw * 0.90;
+                    else if (cat === 'Small Power') catDivKw = list[0].kw + (list.slice(1).reduce((a, b) => a + b.kw, 0) * 0.50);
+                    else catDivKw = catKw * 0.75;
+                } else {
+                    if (cat === 'Lighting') {
+                        let factor = (facilityType === 'Residential') ? 0.66 : (facilityType === 'Commercial Office' ? 0.90 : 0.85);
+                        catDivKw = catKw * factor;
+                    } else if (cat === 'Small Power') {
+                        catDivKw = list[0].kw + (list.slice(1).reduce((a, b) => a + b.kw, 0) * 0.50);
+                    } else if (cat === 'Motors/Machinery' || cat === 'Pumps') {
+                        catDivKw = list.length === 1 ? list[0].kw : (list.length === 2 ? list[0].kw + (list[1].kw * 0.80) : list[0].kw + (list[1].kw * 0.80) + (list.slice(2).reduce((a, b) => a + b.kw, 0) * 0.60));
+                    } else if (cat === 'Lifts') {
+                        catDivKw = list.length === 1 ? list[0].kw : (list.length === 2 ? (list[0].kw + list[1].kw) * 0.75 : catKw * 0.60);
+                    } else if (cat === 'HVAC') {
+                        let factor = acInterlock ? 0.75 : 0.85;
+                        catDivKw = list[0].kw + (list.slice(1).reduce((a, b) => a + b.kw, 0) * factor);
+                    } else {
+                        catDivKw = catKw * 0.80;
+                    }
+                }
+
+                totalDiversifiedKW += catDivKw;
+                let catDivKva = catDivKw / targetPF;
+
+                traceLog += `[${cat.toUpperCase()}] Connected: ${catKw.toFixed(2)} kW -> Diversified: ${catDivKw.toFixed(2)} kW\n`;
+
+                list.forEach(item => {
+                    let itemDivKva = catKw > 0 ? (item.kw / catKw) * catDivKva : 0;
+                    if (item.phase === '3P') {
+                        phaseKVA.R += itemDivKva / 3;
+                        phaseKVA.Y += itemDivKva / 3;
+                        phaseKVA.B += itemDivKva / 3;
+                    } else if (phaseKVA[item.phase] !== undefined) {
+                        phaseKVA[item.phase] += itemDivKva;
+                    }
+                });
+            }
+
+            let totalDiversifiedKVA = totalDiversifiedKW / targetPF;
+
+            // Phase Balance Analysis
+            let avgPhaseKVA = (phaseKVA.R + phaseKVA.Y + phaseKVA.B) / 3;
+            let maxPhaseDiff = Math.max(
+                Math.abs(phaseKVA.R - avgPhaseKVA),
+                Math.abs(phaseKVA.Y - avgPhaseKVA),
+                Math.abs(phaseKVA.B - avgPhaseKVA)
+            );
+            let unbalancePct = avgPhaseKVA > 0 ? (maxPhaseDiff / avgPhaseKVA) * 100 : 0;
+
+            // Design Current (Ib) and Derated Capacity (Iz) Math
+            let isThreePhase = sysVoltage > 240;
+            let rawDesignAmp = isThreePhase ? 
+                (totalDiversifiedKVA * 1000) / (Math.sqrt(3) * sysVoltage) : 
+                (totalDiversifiedKVA * 1000) / sysVoltage;
+
+            let Ib = rawDesignAmp;
+            if (selectedCode === "NEC") {
+                let divContinuousKW = totalContinuousKW * 0.80;
+                let divNonContinuousKW = Math.max(0, totalDiversifiedKW - divContinuousKW);
+                let necDesignKVA = ((divContinuousKW * 1.25) + divNonContinuousKW) / targetPF;
+                Ib = isThreePhase ? (necDesignKVA * 1000) / (Math.sqrt(3) * sysVoltage) : (necDesignKVA * 1000) / sysVoltage;
+            }
+
+            // Apply Derating: Iz = Ib / Ca
+            let Iz = Ca > 0 ? (Ib / Ca) : Ib;
+
+            // Catalog Matching
+            const catType = codePreset.catalogType;
+            const breakerCatalog = CATALOGS[catType].breakers;
+            const transformerCatalog = CATALOGS[catType].transformers;
+
+            let selectedBreaker = breakerCatalog.find(b => b >= Iz) || breakerCatalog[breakerCatalog.length - 1];
+            let recommendedTransformer = transformerCatalog.find(t => t >= (totalDiversifiedKVA / 0.80)) || transformerCatalog[transformerCatalog.length - 1];
+
+            let maxMotorKVA = categories['Motors/Machinery'] ? Math.max(...categories['Motors/Machinery'].map(m => m.kva), 0) : 0;
+            let gensetRequiredKVA = (totalDiversifiedKVA + (maxMotorKVA * 1.5)) / 0.85;
+            let selectedGenset = STANDARD_GENSETS.find(g => g >= gensetRequiredKVA) || STANDARD_GENSETS[STANDARD_GENSETS.length - 1];
+
+            // Update UI Summary Elements
+            document.getElementById("ui-diversified-demand").innerText = `${totalDiversifiedKVA.toFixed(1)} kVA`;
+            document.getElementById("ui-diversified-kw").innerText = `(${totalDiversifiedKW.toFixed(1)} kW)`;
+            document.getElementById("ui-temp-badge").innerText = `${ambientTemp}°C (Ca = ${Ca.toFixed(2)})`;
+            document.getElementById("ui-iz-required").innerText = `${Iz.toFixed(1)} A`;
+            document.getElementById("ui-ib-raw").innerText = `Base Ib: ${Ib.toFixed(1)} A`;
+
+            document.getElementById("ui-imbalance-pct").innerText = `${unbalancePct.toFixed(1)}%`;
+            let badge = document.getElementById("ui-imbalance-badge");
+            badge.className = unbalancePct <= 10 ? "badge pass" : "badge warn";
+            badge.innerText = unbalancePct <= 10 ? `BALANCED` : `UNBALANCED (>10%)`;
+
+            // Update Phase Bar Visualizer
+            let maxPhaseVal = Math.max(phaseKVA.R, phaseKVA.Y, phaseKVA.B, 1);
+            document.getElementById("bar-r").style.width = `${(phaseKVA.R / maxPhaseVal) * 100}%`;
+            document.getElementById("bar-y").style.width = `${(phaseKVA.Y / maxPhaseVal) * 100}%`;
+            document.getElementById("bar-b").style.width = `${(phaseKVA.B / maxPhaseVal) * 100}%`;
+
+            document.getElementById("val-r").innerText = `${phaseKVA.R.toFixed(1)} kVA`;
+            document.getElementById("val-y").innerText = `${phaseKVA.Y.toFixed(1)} kVA`;
+            document.getElementById("val-b").innerText = `${phaseKVA.B.toFixed(1)} kVA`;
+
+            // Update Equipment Cards
+            document.getElementById("res-incomer").innerText = `${selectedBreaker} A`;
+            document.getElementById("res-incomer-sub").innerText = `Min Thermal Rating Iz = ${Iz.toFixed(1)} A`;
+            document.getElementById("res-transformer").innerText = `${recommendedTransformer} kVA`;
+            document.getElementById("res-genset").innerText = `${selectedGenset} kVA`;
+
+            // Detailed Trace Output
+            traceLog += `\n--- THERMAL DERATING & INCOMER SIZING MATH ---\n`;
+            traceLog += `1. Diversified Continuous Current (Ib): ${Ib.toFixed(2)} A\n`;
+            traceLog += `2. Ambient Correction Factor (Ca): ${Ca.toFixed(3)} [Ref: ${codePreset.clauseRef}]\n`;
+            traceLog += `3. Minimum Required Cable Thermal Capacity (Iz):\n`;
+            traceLog += `   Formula: Iz = Ib / Ca\n`;
+            traceLog += `   Iz = ${Ib.toFixed(2)} / ${Ca.toFixed(3)} = ${Iz.toFixed(2)} A\n`;
+            traceLog += `4. Standard Main Incomer Breaker Frame Selected: ${selectedBreaker} A (${catType} Catalog)\n\n`;
+
+            traceLog += `--- SUBSTATION & BACKUP POWER SIZING ---\n`;
+            traceLog += `Transformer Target Capacity (80% Load Factor): ${(totalDiversifiedKVA/0.80).toFixed(2)} kVA -> Selected: ${recommendedTransformer} kVA\n`;
+            traceLog += `Standby Genset Capacity (Inc. Motor Surge): ${gensetRequiredKVA.toFixed(2)} kVA -> Selected: ${selectedGenset} kVA Prime\n`;
+
+            document.getElementById("calc-trace-output").innerText = traceLog;
+        }
+
+        function exportData(type) {
+            const selectedCode = document.getElementById("code-standard").value;
+            if (type === 'json') {
+                const exportObj = {
+                    governingCode: selectedCode,
+                    ambientTemperature: document.getElementById("ambient-temp").value,
+                    insulation: document.getElementById("insulation-type").value,
+                    items: loadItems
+                };
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+                const dl = document.createElement('a');
+                dl.setAttribute("href", dataStr);
+                dl.setAttribute("download", `handasium_thermal_schedule_${selectedCode}.json`);
+                dl.click();
+            } else if (type === 'csv') {
+                let csv = "Circuit Name,Category,Value,Unit,Power Factor,Phase\n";
+                loadItems.forEach(i => {
+                    csv += `"${i.name}","${i.category}",${i.value},"${i.unit}",${i.pf},"${i.phase}"\n`;
+                });
+                const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+                const dl = document.createElement('a');
+                dl.setAttribute("href", dataStr);
+                dl.setAttribute("download", `handasium_thermal_schedule_${selectedCode}.csv`);
+                dl.click();
+            }
+        }
+
+        window.onload = () => {
+            handleStandardChange();
+        };
+    </script>
+</body>
+</html>

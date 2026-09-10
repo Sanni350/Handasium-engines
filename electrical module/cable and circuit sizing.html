@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Cable & Circuit Sizing Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --brand-blue: #0F172A;
+      --accent-blue: #2563EB;
+      --border-gray: #E2E8F0;
+    }
+    body {
+      background-color: #F1F5F9;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border-gray);
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+    .input-field {
+      width: 100%;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.15s ease-in-out;
+    }
+    .input-field:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+    .badge-pass { background-color: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+    .badge-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+  </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <!-- Top Bar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between bg-slate-900 text-white p-4 rounded-lg shadow-md gap-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-bold tracking-tight text-white">HANDASIUM</h1>
+          <span class="text-xs px-2 py-0.5 rounded bg-blue-600 font-medium">Electrical Engine v2.0</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Advanced Impedance, Harmonic Neutral & Z<sub>s</sub> Disconnection Sizing</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <label class="text-xs font-semibold text-slate-300">Design Standard:</label>
+        <select id="codeSelect" class="bg-slate-800 text-white text-sm border border-slate-700 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none" onchange="runCalculations()">
+          <option value="BS7671">BS 7671 / IEC 60364 (Metric)</option>
+          <option value="NEC2023">NEC 2023 / NFPA 70 (AWG/kcmil)</option>
+          <option value="IS1255">IS 1255 / IS 732 (India Metric)</option>
+        </select>
+        <button onclick="exportData()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded transition font-semibold">Export JSON</button>
+      </div>
+    </div>
+
+    <!-- Status Banner -->
+    <div id="statusBanner" class="card p-4 flex flex-col md:flex-row items-center justify-between gap-4 border-l-4 border-l-green-500">
+      <div class="flex items-center gap-3">
+        <span id="statusBadge" class="text-xs font-bold px-3 py-1 rounded-full badge-pass">PASS</span>
+        <div>
+          <h3 id="recommendedCableTitle" class="text-base font-bold text-slate-900">Recommended Cable: 4C x 35 mm² XLPE/Cu</h3>
+          <p id="statusSubtitle" class="text-xs text-slate-500">Complies with Ampacity, Harmonic Neutral, Voltage Drop, and Z<sub>s</sub> Disconnection limits.</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <span class="text-xs text-slate-400 block">Design Current (I<sub>design</sub>)</span>
+        <span id="designCurrentDisplay" class="text-lg font-bold text-slate-800">80.9 A</span>
+      </div>
+    </div>
+
+    <!-- Main Grid Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Input Panel (Left Column) -->
+      <div class="card p-5 space-y-4 lg:col-span-1">
+        <h2 class="text-sm font-bold text-slate-900 border-b pb-2 uppercase tracking-wider text-slate-600">Input Parameters</h2>
+
+        <!-- System & Load -->
+        <div class="space-y-3">
+          <span class="text-xs font-bold text-blue-600 block">System & Load</span>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Voltage Phase</label>
+              <select id="phaseSelect" class="input-field" onchange="runCalculations()">
+                <option value="3PH">3-Phase (400V / 480V)</option>
+                <option value="1PH">1-Phase (230V / 120V)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Voltage (V)</label>
+              <input type="number" id="voltageInput" value="400" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Load Power (kW)</label>
+              <input type="number" id="powerKwInput" value="45" class="input-field" oninput="runCalculations()">
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Power Factor (pf)</label>
+              <input type="number" step="0.01" id="pfInput" value="0.85" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Circuit Length</label>
+              <div class="flex gap-1">
+                <input type="number" id="lengthInput" value="75" class="input-field" oninput="runCalculations()">
+                <span id="lengthUnit" class="text-xs self-center font-semibold text-slate-500">m</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Max V-Drop (%)</label>
+              <input type="number" step="0.1" id="maxVdropInput" value="5.0" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Installation & Harmonic Settings -->
+        <div class="space-y-3 pt-2 border-t">
+          <span class="text-xs font-bold text-blue-600 block">Installation & Load Type</span>
+          <div>
+            <label class="text-xs text-slate-600 block mb-1">Installation Method</label>
+            <select id="installMethodSelect" class="input-field" onchange="runCalculations()">
+              <option value="C">Method C (Clipped Direct / Cable Tray)</option>
+              <option value="A">Method A (Conduit in insulated wall)</option>
+              <option value="B">Method B (Conduit on wall / trunking)</option>
+              <option value="D">Method D (Direct Buried in ground)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Ambient Temp (°C)</label>
+              <input type="number" id="ambientTempInput" value="35" class="input-field" oninput="runCalculations()">
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Grouped Circuits (C<sub>g</sub>)</label>
+              <input type="number" id="groupingInput" value="2" min="1" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+
+          <!-- Advanced Switches -->
+          <div class="space-y-2 pt-1">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="harmonicLoadCheck" onchange="runCalculations()" class="rounded text-blue-600">
+              <label for="harmonicLoadCheck" class="text-xs font-semibold text-slate-700">High-Harmonic / Non-Linear (C<sub>h</sub> = 0.86)</label>
+            </div>
+            <div id="necContinuousOption" class="hidden flex items-center gap-2">
+              <input type="checkbox" id="continuousLoadCheck" checked onchange="runCalculations()" class="rounded text-blue-600">
+              <label for="continuousLoadCheck" class="text-xs font-semibold text-slate-700">NEC Continuous Load (+125%)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cable Specs & Fault Limits -->
+        <div class="space-y-3 pt-2 border-t">
+          <span class="text-xs font-bold text-blue-600 block">Protection & Impedance</span>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Conductor Material</label>
+              <select id="materialSelect" class="input-field" onchange="runCalculations()">
+                <option value="Cu">Copper (Cu)</option>
+                <option value="Al">Aluminum (Al)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Insulation Rating</label>
+              <select id="insulationSelect" class="input-field" onchange="runCalculations()">
+                <option value="XLPE">90°C XLPE / LSF</option>
+                <option value="PVC">70°C PVC</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Protection Type</label>
+              <select id="protectionTypeSelect" class="input-field" onchange="runCalculations()">
+                <option value="MCB_C">MCB Type C (0.4s)</option>
+                <option value="MCB_B">MCB Type B (0.4s)</option>
+                <option value="MCB_D">MCB Type D (0.4s)</option>
+                <option value="MCCB">MCCB (5s Disconnect)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Rating I<sub>n</sub> (A)</label>
+              <input type="number" id="incomerRatingInput" value="100" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Ext Loop Impedance Z<sub>e</sub> (Ω)</label>
+              <input type="number" step="0.01" id="zeInput" value="0.35" class="input-field" oninput="runCalculations()">
+            </div>
+            <div>
+              <label class="text-xs text-slate-600 block mb-1">Fault I<sub>sc</sub> (kA)</label>
+              <input type="number" step="0.1" id="faultCurrentInput" value="10.0" class="input-field" oninput="runCalculations()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analysis & Results (Right 2 Columns) -->
+      <div class="space-y-6 lg:col-span-2">
+        
+        <!-- Action Cards Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="card p-3">
+            <span class="text-[11px] font-semibold text-slate-400 block uppercase">Selected Conductor</span>
+            <span id="selectedSizeCard" class="text-lg font-bold text-blue-600 block mt-1">35 mm²</span>
+            <span id="sizeUnitSub" class="text-[10px] text-slate-500">Cross-Section Area</span>
+          </div>
+
+          <div class="card p-3">
+            <span class="text-[11px] font-semibold text-slate-400 block uppercase">Derated Rating I<sub>z</sub></span>
+            <span id="deratedCapacityCard" class="text-lg font-bold text-slate-800 block mt-1">96.7 A</span>
+            <span id="capacityStatusSub" class="text-[10px] text-green-600 font-semibold">≥ I<sub>n</sub> PASS</span>
+          </div>
+
+          <div class="card p-3">
+            <span class="text-[11px] font-semibold text-slate-400 block uppercase">Voltage Drop</span>
+            <span id="vdropCard" class="text-lg font-bold text-slate-800 block mt-1">2.14%</span>
+            <span id="vdropVoltsSub" class="text-[10px] text-slate-500">Z = √(R²+X²) Corrected</span>
+          </div>
+
+          <div class="card p-3">
+            <span class="text-[11px] font-semibold text-slate-400 block uppercase">Earth Fault Loop Z<sub>s</sub></span>
+            <span id="zsCard" class="text-lg font-bold text-slate-800 block mt-1">0.42 Ω</span>
+            <span id="zsStatusSub" class="text-[10px] text-green-600 font-semibold">≤ Z<sub>s_max</sub> (0.44 Ω) PASS</span>
+          </div>
+        </div>
+
+        <!-- Interactive Single Line Schematic -->
+        <div class="card p-4">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Circuit Single Line Diagram</h3>
+          <div class="w-full bg-slate-50 border rounded p-4 flex justify-center">
+            <svg id="schematicSvg" viewBox="0 0 600 120" class="w-full max-w-xl h-auto">
+              <!-- Source Panel -->
+              <rect x="20" y="30" width="70" height="60" rx="4" fill="#0F172A" />
+              <text x="55" y="58" fill="white" font-size="10" text-anchor="middle" font-weight="bold">DB PANEL</text>
+              <text x="55" y="72" fill="#94A3B8" font-size="8" text-anchor="middle" id="svgPanelVoltage">400V 3Ph</text>
+
+              <!-- Bus & Breaker -->
+              <line x1="90" y1="60" x2="140" y2="60" stroke="#0F172A" stroke-width="3" />
+              <rect x="140" y="45" width="40" height="30" rx="2" fill="#2563EB" />
+              <text x="160" y="63" fill="white" font-size="9" text-anchor="middle" font-weight="bold" id="svgBreakerLabel">100A</text>
+
+              <!-- Cable Run Line -->
+              <line x1="180" y1="60" x2="420" y2="60" stroke="#2563EB" stroke-width="4" stroke-dasharray="6,3" />
+              <rect x="240" y="35" width="120" height="20" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+              <text x="300" y="48" fill="#1E293B" font-size="8" text-anchor="middle" font-weight="bold" id="svgCableLabel">35mm² Cu XLPE (75m)</text>
+
+              <!-- Termination Load -->
+              <line x1="420" y1="60" x2="470" y2="60" stroke="#0F172A" stroke-width="3" />
+              <circle cx="505" cy="60" r="35" fill="#1E293B" />
+              <text x="505" y="58" fill="white" font-size="10" text-anchor="middle" font-weight="bold">LOAD</text>
+              <text x="505" y="72" fill="#38BDF8" font-size="9" text-anchor="middle" font-weight="bold" id="svgLoadLabel">45 kW</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Calculation Sheet -->
+        <div class="card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Step-by-Step Engineering Calculation Sheet</h3>
+            <span id="citationTag" class="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">BS 7671:2018 / IEC 60364</span>
+          </div>
+
+          <div class="space-y-3 text-xs text-slate-700 font-mono bg-slate-50 p-4 rounded border leading-relaxed">
+            <p><strong>STEP 1: Design Current (I<sub>b</sub>) & Continuous Load Factor</strong><br>
+               <span id="step1Calc">I<sub>b</sub> = 45,000 W / (√3 × 400 V × 0.85) = 80.91 A</span>
+            </p>
+
+            <p><strong>STEP 2: Combined Derating Factors (C<sub>total</sub> = C<sub>a</sub> × C<sub>g</sub> × C<sub>h</sub>)</strong><br>
+               <span id="step3Calc">C<sub>a</sub> = 0.94 @ 35°C | C<sub>g</sub> = 0.80 | C<sub>h</sub> = 0.86 (Harmonics Active)<br>
+               C<sub>total</sub> = 0.94 × 0.80 × 0.86 = 0.647</span>
+            </p>
+
+            <p><strong>STEP 3: Minimum Tabulated Capacity & Selection</strong><br>
+               <span id="step4Calc">I<sub>t_min</sub> = 100 A / 0.647 = 154.5 A -> Selected Size: 35 mm² (Derated I<sub>z</sub> = 97.0 A)</span>
+            </p>
+
+            <p><strong>STEP 4: Temperature-Adjusted Impedance & Voltage Drop</strong><br>
+               <span id="step6Calc">R<sub>temp</sub> = 0.625 mΩ/m @ 80°C | X<sub>L</sub> = 0.08 mΩ/m | Z = √(R² + X²) = 0.630 mΩ/m<br>
+               Actual V-Drop = 6.64 V (1.66%) [Limit: 5.0% - PASS]</span>
+            </p>
+
+            <p><strong>STEP 5: Earth Fault Loop Impedance (Z<sub>s</sub>) & Disconnection Check</strong><br>
+               <span id="stepZsCalc">Z<sub>s</sub> = Z<sub>e</sub> + [(R<sub>1</sub>+R<sub>2</sub>) × L × 1.2 / 1000] = 0.35 + (1.25 × 75 × 1.2 / 1000) = 0.46 Ω<br>
+               Z<sub>s_max</sub> (MCB Type C 100A, 0.4s) = 0.44 Ω -> [Z<sub>s</sub> STATUS: FAIL - RESIZE OR USE RCD]</span>
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const cableDatabase = [
+      { size: 2.5,  capacity: 29,  r20: 7.41,  xl: 0.10, awg: "14 AWG" },
+      { size: 4.0,  capacity: 39,  r20: 4.61,  xl: 0.09, awg: "12 AWG" },
+      { size: 6.0,  capacity: 50,  r20: 3.08,  xl: 0.09, awg: "10 AWG" },
+      { size: 10.0, capacity: 68,  r20: 1.83,  xl: 0.08, awg: "8 AWG" },
+      { size: 16.0, capacity: 91,  r20: 1.15,  xl: 0.08, awg: "6 AWG" },
+      { size: 25.0, capacity: 121, r20: 0.727, xl: 0.08, awg: "4 AWG" },
+      { size: 35.0, capacity: 150, r20: 0.524, xl: 0.08, awg: "2 AWG" },
+      { size: 50.0, capacity: 181, r20: 0.387, xl: 0.08, awg: "1/0 AWG" },
+      { size: 70.0, capacity: 229, r20: 0.268, xl: 0.07, awg: "2/0 AWG" },
+      { size: 95.0, capacity: 281, r20: 0.193, xl: 0.07, awg: "3/0 AWG" },
+      { size: 120.0,capacity: 326, r20: 0.153, xl: 0.07, awg: "4/0 AWG" },
+      { size: 150.0,capacity: 374, r20: 0.124, xl: 0.07, awg: "250 kcmil" },
+      { size: 185.0,capacity: 428, r20: 0.0991,xl: 0.07, awg: "350 kcmil" },
+      { size: 240.0,capacity: 506, r20: 0.0754,xl: 0.07, awg: "500 kcmil" }
+    ];
+
+    // Max Zs limits for MCB Types per BS 7671 (Normalized per 100A baseline)
+    function getMaxZs(type, rating) {
+      let multiplier = 1.0;
+      if (type === "MCB_B") multiplier = 2.0;
+      if (type === "MCB_C") multiplier = 1.0;
+      if (type === "MCB_D") multiplier = 0.5;
+      if (type === "MCCB")  multiplier = 1.2;
+      return (44.0 / rating) * multiplier;
+    }
+
+    function runCalculations() {
+      const code = document.getElementById("codeSelect").value;
+      const phase = document.getElementById("phaseSelect").value;
+      const voltage = parseFloat(document.getElementById("voltageInput").value) || 400;
+      const powerKw = parseFloat(document.getElementById("powerKwInput").value) || 0;
+      const pf = parseFloat(document.getElementById("pfInput").value) || 0.85;
+      const length = parseFloat(document.getElementById("lengthInput").value) || 1;
+      const maxVdropPct = parseFloat(document.getElementById("maxVdropInput").value) || 5.0;
+      
+      const ambientTemp = parseFloat(document.getElementById("ambientTempInput").value) || 30;
+      const groupCount = parseInt(document.getElementById("groupingInput").value) || 1;
+      const isHarmonic = document.getElementById("harmonicLoadCheck").checked;
+      const isNecContinuous = document.getElementById("continuousLoadCheck").checked && code === 'NEC2023';
+
+      const material = document.getElementById("materialSelect").value;
+      const insulation = document.getElementById("insulationSelect").value;
+      const protType = document.getElementById("protectionTypeSelect").value;
+      const incomerRating = parseFloat(document.getElementById("incomerRatingInput").value) || 100;
+      const ze = parseFloat(document.getElementById("zeInput").value) || 0.35;
+      const faultCurrent = parseFloat(document.getElementById("faultCurrentInput").value) || 10.0;
+
+      document.getElementById("necContinuousOption").classList.toggle("hidden", code !== "NEC2023");
+      document.getElementById("lengthUnit").textContent = code === "NEC2023" ? "ft" : "m";
+
+      // 1. Compute Design Current (Ib)
+      let ib = (phase === "3PH") ? (powerKw * 1000) / (Math.sqrt(3) * voltage * pf) : (powerKw * 1000) / (voltage * pf);
+      let designCurrent = isNecContinuous ? (ib * 1.25) : ib;
+
+      // 2. Compute Derating Factors
+      let ca = ambientTemp > 30 ? Math.max(0.70, 1 - (ambientTemp - 30) * 0.012) : 1.0;
+      let cg = groupCount > 1 ? Math.max(0.50, 1 / Math.sqrt(groupCount)) : 1.0;
+      let ch = isHarmonic ? 0.86 : 1.0;
+      let cTotal = ca * cg * ch;
+
+      // 3. Tabulated Required Current
+      let requiredIn = Math.max(incomerRating, designCurrent);
+      let itMin = requiredIn / cTotal;
+
+      // 4. Conductor Selection Logic
+      let selectedCable = cableDatabase[cableDatabase.length - 1];
+      for (let cable of cableDatabase) {
+        let capacityAdjusted = cable.capacity * (material === 'Al' ? 0.78 : 1.0) * (insulation === 'PVC' ? 0.88 : 1.0);
+        if (capacityAdjusted >= itMin) {
+          selectedCable = cable;
+          break;
+        }
+      }
+
+      // 5. Temperature Adjusted Impedance Calculation (R_temp & Reactance X_L)
+      let tOp = insulation === "XLPE" ? 90 : 70;
+      let alpha = material === "Cu" ? 0.00393 : 0.00403;
+      let rTemp = selectedCable.r20 * (1 + alpha * (tOp - 20));
+      let xl = selectedCable.size >= 25 ? selectedCable.xl : 0.0;
+      let zTotalPerMeter = Math.sqrt(Math.pow(rTemp, 2) + Math.pow(xl, 2));
+
+      // Voltage Drop using Z
+      let sinPf = Math.sin(Math.acos(pf));
+      let vdropVolts = (Math.sqrt(phase === "3PH" ? 3 : 1) * ib * length * ((rTemp * pf + xl * sinPf) / 1000));
+      let vdropPct = (vdropVolts / voltage) * 100;
+
+      // 6. Earth Fault Loop Impedance (Zs) Check
+      let r1r2 = rTemp * 2.0; // R1+R2 simplified double path
+      let zsCalc = ze + ((r1r2 * length * 1.2) / 1000);
+      let zsMax = getMaxZs(protType, incomerRating);
+      let isZsPass = zsCalc <= zsMax;
+
+      // Final Iz Capacity
+      let finalIz = selectedCable.capacity * cTotal * (material === 'Al' ? 0.78 : 1.0);
+
+      // Pass/Fail Status
+      let isPass = finalIz >= requiredIn && vdropPct <= maxVdropPct && isZsPass;
+
+      // Render Outputs
+      updateUI({
+        code, phase, voltage, powerKw, ib, designCurrent, requiredIn, cTotal, ca, cg, ch,
+        selectedCable, finalIz, vdropVolts, vdropPct, maxVdropPct,
+        zsCalc, zsMax, isZsPass, isPass, material, insulation, length, protType, rTemp, xl
+      });
+    }
+
+    function updateUI(res) {
+      const statusBadge = document.getElementById("statusBadge");
+      const statusBanner = document.getElementById("statusBanner");
+      
+      if (res.isPass) {
+        statusBadge.textContent = "PASS";
+        statusBadge.className = "text-xs font-bold px-3 py-1 rounded-full badge-pass";
+        statusBanner.className = "card p-4 flex flex-col md:flex-row items-center justify-between gap-4 border-l-4 border-l-green-500";
+      } else {
+        statusBadge.textContent = "FAIL / REVIEW";
+        statusBadge.className = "text-xs font-bold px-3 py-1 rounded-full badge-fail";
+        statusBanner.className = "card p-4 flex flex-col md:flex-row items-center justify-between gap-4 border-l-4 border-l-red-500";
+      }
+
+      const sizeLabel = res.code === "NEC2023" ? res.selectedCable.awg : `${res.selectedCable.size} mm²`;
+      document.getElementById("recommendedCableTitle").textContent = `Recommended Cable: 4C x ${sizeLabel} ${res.insulation}/${res.material}`;
+      document.getElementById("designCurrentDisplay").textContent = `${res.designCurrent.toFixed(1)} A`;
+
+      // Cards Update
+      document.getElementById("selectedSizeCard").textContent = sizeLabel;
+      document.getElementById("deratedCapacityCard").textContent = `${res.finalIz.toFixed(1)} A`;
+      document.getElementById("vdropCard").textContent = `${res.vdropPct.toFixed(2)}%`;
+      document.getElementById("zsCard").textContent = `${res.zsCalc.toFixed(2)} Ω`;
+      document.getElementById("zsStatusSub").textContent = `Limit: ${res.zsMax.toFixed(2)} Ω [${res.isZsPass ? 'PASS' : 'FAIL'}]`;
+      document.getElementById("zsStatusSub").className = `text-[10px] font-semibold ${res.isZsPass ? 'text-green-600' : 'text-red-600'}`;
+
+      // Schematic Text
+      document.getElementById("svgPanelVoltage").textContent = `${res.voltage}V ${res.phase}`;
+      document.getElementById("svgBreakerLabel").textContent = `${Math.round(res.requiredIn)}A`;
+      document.getElementById("svgCableLabel").textContent = `${sizeLabel} ${res.material} (${res.length}${res.code === "NEC2023" ? "ft" : "m"})`;
+      document.getElementById("svgLoadLabel").textContent = `${res.powerKw} kW`;
+
+      // Detailed Calculation Sheet
+      document.getElementById("citationTag").textContent = res.code === "NEC2023" ? "NEC 2023 Art. 310 / Tab 310.16" : "BS 7671:2018 / IEC 60364-5-52";
+      document.getElementById("step1Calc").textContent = `I_b = ${res.powerKw * 1000} W / (√3 × ${res.voltage} V × pf) = ${res.ib.toFixed(2)} A (Design Load: ${res.designCurrent.toFixed(2)} A)`;
+      document.getElementById("step3Calc").textContent = `C_a = ${res.ca.toFixed(2)} | C_g = ${res.cg.toFixed(2)} | C_h = ${res.ch.toFixed(2)} -> Combined C_total = ${res.cTotal.toFixed(3)}`;
+      document.getElementById("step4Calc").textContent = `I_t_min = ${Math.round(res.requiredIn)} A / ${res.cTotal.toFixed(3)} = ${(res.requiredIn / res.cTotal).toFixed(1)} A -> Selected: ${sizeLabel} (Derated I_z = ${res.finalIz.toFixed(1)} A)`;
+      document.getElementById("step6Calc").textContent = `R_temp = ${res.rTemp.toFixed(3)} mΩ/m @ Operating Temp | X_L = ${res.xl.toFixed(2)} mΩ/m -> Calculated V-Drop = ${res.vdropVolts.toFixed(2)} V (${res.vdropPct.toFixed(2)}%)`;
+      document.getElementById("stepZsCalc").textContent = `Z_s = Z_e + [(R1+R2) × L × 1.2 / 1000] = ${res.zsCalc.toFixed(2)} Ω | Z_s_max (${res.protType}) = ${res.zsMax.toFixed(2)} Ω [STATUS: ${res.isZsPass ? 'PASS' : 'FAIL - DISCONNECTION TIME EXCEEDED'}]`;
+    }
+
+    function exportData() {
+      const data = {
+        engine: "Handasium Cable Sizing Engine v2.0",
+        timestamp: new Date().toISOString(),
+        code: document.getElementById("codeSelect").value,
+        powerKw: document.getElementById("powerKwInput").value,
+        selectedCable: document.getElementById("selectedSizeCard").textContent,
+        zsCalculated: document.getElementById("zsCard").textContent,
+        vdropPercent: document.getElementById("vdropCard").textContent
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Handasium_Advanced_Cable_Report.json";
+      a.click();
+    }
+
+    window.onload = runCalculations;
+  </script>
+</body>
+</html>
