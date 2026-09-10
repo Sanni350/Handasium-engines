@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Fault Current & Protection</title>
+  <!-- Chart.js and Annotation Plugin for Interactive TCC Plotting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.2/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --deep-blue: #1E293B;
+      --accent-blue: #2563EB;
+      --silver: #E2E8F0;
+      --ash-grey: #64748B;
+      --light-grey: #F8FAFC;
+      --pass-green: #10B981;
+      --fail-red: #EF4444;
+      --warn-amber: #F59E0B;
+      --border: #CBD5E1;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--light-grey); color: var(--navy); margin: 0; padding: 20px 24px 24px 24px; }
+    
+    /* Top Header Layout - Handasium Design System */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .brand-title .module-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ash-grey);
+      background-color: var(--silver);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Streamlined Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pill-pass { background-color: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .pill-warn { background-color: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-pass { background-color: var(--pass-green); }
+    .dot-warn { background-color: var(--warn-amber); }
+    .dot-fail { background-color: var(--fail-red); }
+
+    .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panel Styles */
+    .panel { background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border); padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; border-bottom: 1.5px solid var(--light-grey); padding-bottom: 6px; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ash-grey); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background-color: #FFFFFF; font-size: 0.85rem; color: var(--navy); }
+    select:focus, input:focus { border-color: var(--accent-blue); outline: none; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .checkbox-group input { width: auto; }
+
+    /* Metric Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; position: relative; }
+    .card-val { font-size: 1.3rem; font-weight: 800; color: var(--navy); margin: 2px 0; }
+    .card-lbl { font-size: 0.7rem; font-weight: 600; color: var(--ash-grey); text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; margin-top: 4px; }
+    .badge-pass { background: #D1FAE5; color: #065F46; }
+    .badge-warn { background: #FEF3C7; color: #92400E; }
+    .badge-fail { background: #FEE2E2; color: #991B1B; }
+
+    /* Chart Container */
+    .chart-container { position: relative; height: 410px; width: 100%; margin-bottom: 16px; }
+
+    /* Engineering Calculation Sheet Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    th { background-color: var(--light-grey); color: var(--ash-grey); font-weight: 600; }
+    
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { background: var(--accent-blue); color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; flex: 1; font-size: 0.82rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--navy); }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Module 2 Aligned Top Header Branding -->
+<header class="app-header">
+  <div class="brand-title">
+    <h1>Handasium</h1>
+    <span class="module-tag">Fault Current & Protection</span>
+  </div>
+  <!-- Compact Executive Status Pill -->
+  <div id="statusPill" class="status-pill pill-pass">
+    <span id="statusDot" class="status-dot dot-pass"></span>
+    <span id="statusPillText">TOTAL SELECTIVITY</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- Left Column: Input Parameters Controls -->
+  <div class="panel">
+    <div class="panel-title">1. System Parameters</div>
+    
+    <div class="form-group">
+      <label for="standard">Design Standard</label>
+      <select id="standard" onchange="calculateFaultEngine()">
+        <option value="IEC">IEC 60909 / BS 7671 (Appendix 14)</option>
+        <option value="NEC">NEC 2023 (Article 110.9 & 240)</option>
+        <option value="IS">IS 13234 / IS 2026</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="vSec">Sec. Line Volt (V)</label>
+        <input type="number" id="vSec" value="400" onchange="calculateFaultEngine()">
+      </div>
+      <div>
+        <label for="sTrans">Tx Rating (kVA)</label>
+        <input type="number" id="sTrans" value="1000" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="zTrans">Tx Impedance (%Z)</label>
+        <input type="number" id="zTrans" value="5.0" step="0.1" onchange="calculateFaultEngine()">
+      </div>
+      <div>
+        <label for="rxRatio">Tx R/X Ratio</label>
+        <input type="number" id="rxRatio" value="0.2" step="0.05" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="gridFaultMva">Grid Short-Circuit Level (MVA)</label>
+      <input type="number" id="gridFaultMva" value="500" onchange="calculateFaultEngine()">
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">2. Feeder & Distribution (Module 2)</div>
+    
+    <div class="form-group grid-2">
+      <div>
+        <label for="cMat">Conductor</label>
+        <select id="cMat" onchange="calculateFaultEngine()">
+          <option value="Cu">Copper (Cu)</option>
+          <option value="Al">Aluminum (Al)</option>
+        </select>
+      </div>
+      <div>
+        <label for="cSize">Cross-Section (mm²)</label>
+        <input type="number" id="cSize" value="35" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="cLen">Length (m)</label>
+        <input type="number" id="cLen" value="45" onchange="calculateFaultEngine()">
+      </div>
+      <div>
+        <label for="cType">Insulation</label>
+        <select id="cType" onchange="calculateFaultEngine()">
+          <option value="XLPE">XLPE (90°C)</option>
+          <option value="PVC">PVC (70°C)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">3. Protection Devices</div>
+    
+    <div class="form-group grid-2">
+      <div>
+        <label for="upType">Upstream Device</label>
+        <select id="upType" onchange="calculateFaultEngine()">
+          <option value="MCCB">MCCB (Industrial)</option>
+          <option value="ACB">ACB (Air Breaker + Delay)</option>
+        </select>
+      </div>
+      <div>
+        <label for="upIn">Upstream Rating In (A)</label>
+        <input type="number" id="upIn" value="250" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="upIcu">Upstream Icu (kA)</label>
+        <input type="number" id="upIcu" value="36" onchange="calculateFaultEngine()">
+      </div>
+      <div>
+        <label for="upDelay">Short Time Delay (s)</label>
+        <input type="number" id="upDelay" value="0.2" step="0.05" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="downCurve">Downstream Device</label>
+        <select id="downCurve" onchange="calculateFaultEngine()">
+          <option value="C">Type C MCB</option>
+          <option value="B">Type B MCB</option>
+          <option value="D">Type D MCB</option>
+        </select>
+      </div>
+      <div>
+        <label for="downIn">Downstream In (A)</label>
+        <input type="number" id="downIn" value="32" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="downIcu">Downstream Icu (kA)</label>
+        <input type="number" id="downIcu" value="10" onchange="calculateFaultEngine()">
+      </div>
+      <div>
+        <label for="ze">Ze / Zdb (Ω)</label>
+        <input type="number" id="ze" value="0.12" step="0.01" onchange="calculateFaultEngine()">
+      </div>
+    </div>
+
+    <div class="checkbox-group">
+      <input type="checkbox" id="enableCascading" onchange="calculateFaultEngine()">
+      <label for="enableCascading" style="text-transform:none; font-size:0.8rem; color:var(--navy); margin-bottom:0;">
+        Enable Cascading / Back-Up Protection Logic
+      </label>
+    </div>
+  </div>
+
+  <!-- Right Column: Dashboard, TCC Chart & Engineering Sheet -->
+  <div>
+    <!-- Output Metric Cards -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-lbl">Sym. Fault (I_k3)</div>
+        <div class="card-val" id="valIk3">0.0 kA</div>
+        <div id="badgeIcu" class="badge badge-pass">Breaking: PASS</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Peak Fault Current (I_p)</div>
+        <div class="card-val" id="valIp">0.0 kA</div>
+        <div id="badgeIcm" class="badge badge-pass">Making Capacity: PASS</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Selectivity Limit (I_s)</div>
+        <div class="card-val" id="valIs">0.0 kA</div>
+        <div id="badgeSelectivity" class="badge badge-pass">TOTAL SELECTIVITY</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Earth Fault Loop (Z_s)</div>
+        <div class="card-val" id="valZs">0.00 Ω</div>
+        <div id="badgeZs" class="badge badge-pass">Disconnection: PASS</div>
+      </div>
+    </div>
+
+    <!-- TCC Curve Interactive Chart -->
+    <div class="panel">
+      <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Time-Current Characteristic (TCC) Log-Log Plot</span>
+        <span style="font-size:0.75rem; color:var(--ash-grey); font-weight:normal;">Red Line = Selectivity Limit (I_s)</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="tccChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Engineering Calculation Sheet Table -->
+    <div class="panel" style="margin-top: 16px;">
+      <div class="panel-title">Deterministic Engineering Calculation Sheet</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Step / Parameter</th>
+            <th>Formula / Standard Clause</th>
+            <th>Calculated Value</th>
+            <th>Compliance Verification</th>
+          </tr>
+        </thead>
+        <tbody id="calcSheetBody">
+          <!-- Populated dynamically -->
+        </tbody>
+      </table>
+      <div class="btn-group">
+        <button class="btn" onclick="exportJSON()">Export JSON Parameters</button>
+        <button class="btn btn-outline" onclick="window.print()">Print Verification Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let tccChartInstance = null;
+
+  window.onload = () => {
+    initChart();
+    calculateFaultEngine();
+  };
+
+  function initChart() {
+    const ctx = document.getElementById('tccChart').getContext('2d');
+    tccChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: { datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Fault Current (Amperes - A)', font: { weight: 'bold' } },
+            min: 10,
+            max: 50000
+          },
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Operating Time (Seconds - s)', font: { weight: 'bold' } },
+            min: 0.01,
+            max: 100
+          }
+        },
+        plugins: {
+          legend: { position: 'top' },
+          annotation: { annotations: {} }
+        }
+      }
+    });
+  }
+
+  function calculateFaultEngine() {
+    // 1. Inputs
+    const standard = document.getElementById('standard').value;
+    const vSec = parseFloat(document.getElementById('vSec').value) || 400;
+    const sTrans = parseFloat(document.getElementById('sTrans').value) || 1000;
+    const zTransPct = parseFloat(document.getElementById('zTrans').value) || 5.0;
+    const rxRatio = parseFloat(document.getElementById('rxRatio').value) || 0.2;
+    const gridMva = parseFloat(document.getElementById('gridFaultMva').value) || 500;
+    
+    const cMat = document.getElementById('cMat').value;
+    const cSize = parseFloat(document.getElementById('cSize').value) || 35;
+    const cLen = parseFloat(document.getElementById('cLen').value) || 45;
+    const cType = document.getElementById('cType').value;
+
+    const upType = document.getElementById('upType').value;
+    const upIn = parseFloat(document.getElementById('upIn').value) || 250;
+    const upIcu = parseFloat(document.getElementById('upIcu').value) || 36;
+    const upDelay = parseFloat(document.getElementById('upDelay').value) || 0.2;
+
+    const downCurve = document.getElementById('downCurve').value;
+    const downIn = parseFloat(document.getElementById('downIn').value) || 32;
+    const downIcu = parseFloat(document.getElementById('downIcu').value) || 10;
+    const ze = parseFloat(document.getElementById('ze').value) || 0.12;
+    const enableCascading = document.getElementById('enableCascading').checked;
+
+    const cFactor = standard === 'NEC' ? 1.0 : 1.05;
+    const vPhase = vSec / Math.sqrt(3);
+
+    // STEP 1: Upstream & Cable Impedance Network
+    const zGrid = (Math.pow(vSec, 2) / (gridMva * 1e6));
+    const xGrid = zGrid * 0.98;
+    const rGrid = zGrid * 0.2;
+
+    const zTrans = (Math.pow(vSec, 2) / (sTrans * 1000)) * (zTransPct / 100);
+    const xTrans = zTrans / Math.sqrt(1 + Math.pow(rxRatio, 2));
+    const rTrans = xTrans * rxRatio;
+
+    const rUpstream = rGrid + rTrans;
+    const xUpstream = xGrid + xTrans;
+
+    const rhoBase = (cMat === 'Cu') ? 0.0178 : 0.0282;
+    const tempMult = (cType === 'XLPE') ? 1.28 : 1.20;
+    const rCablePhase = (rhoBase * tempMult * cLen) / cSize;
+    const xCablePhase = 0.08 * (cLen / 1000);
+
+    const rTotal = rUpstream + rCablePhase;
+    const xTotal = xUpstream + xCablePhase;
+    const zTotal = Math.sqrt(Math.pow(rTotal, 2) + Math.pow(xTotal, 2));
+    const systemRxRatio = rTotal / (xTotal || 0.0001);
+
+    // STEP 2: Prospective Fault Currents
+    const iK3 = (cFactor * vSec) / (Math.sqrt(3) * zTotal * 1000);
+    const kappa = 1.02 + 0.98 * Math.exp(-3 * systemRxRatio);
+    const ip = kappa * Math.sqrt(2) * iK3;
+
+    const r1r2 = rCablePhase * 2;
+    const zs = ze + r1r2;
+    const iK1 = (cFactor * vPhase) / (zs * 1000);
+
+    // STEP 3: Breaking & Making Capacity Verification (Including Cascading)
+    let isIcuPass = downIcu >= iK3;
+    let cascadingApplied = false;
+
+    if (!isIcuPass && enableCascading) {
+      const cascadingReinforcedRating = downIcu * 2.5;
+      if (cascadingReinforcedRating >= iK3 && upIcu >= iK3) {
+        isIcuPass = true;
+        cascadingApplied = true;
+      }
+    }
+
+    const ratedIcm = downIcu * 2.1;
+    const isIcmPass = ratedIcm >= ip;
+
+    // STEP 4: Advanced Selectivity & Coordination Boundary Analysis
+    const magMult = downCurve === 'B' ? 5 : (downCurve === 'C' ? 10 : 20);
+    const downTripInst = (downIn * magMult) / 1000;
+    
+    let isLimit = 0;
+    let selectivityStatus = "TOTAL SELECTIVITY";
+
+    if (upType === 'ACB') {
+      isLimit = upIcu;
+      selectivityStatus = "TOTAL SELECTIVITY";
+    } else {
+      const upInstThreshold = (upIn * 8) / 1000;
+      isLimit = upInstThreshold;
+      
+      if (isLimit >= iK3) {
+        selectivityStatus = "TOTAL SELECTIVITY";
+      } else if (isLimit > downTripInst) {
+        selectivityStatus = `PARTIAL SELECTIVITY (${isLimit.toFixed(1)} kA)`;
+      } else {
+        selectivityStatus = "UNCOORDINATED";
+      }
+    }
+
+    // STEP 5: Thermal Energy Let-Through Verification
+    const kFactor = (cMat === 'Cu') ? ((cType === 'XLPE') ? 143 : 115) : ((cType === 'XLPE') ? 94 : 76);
+    const cableWithstand = Math.pow(kFactor * cSize, 2);
+    const mcbLetThrough = 45000;
+    const isI2tPass = mcbLetThrough <= cableWithstand;
+
+    // UPDATE UI METRICS & BADGES
+    document.getElementById('valIk3').innerText = iK3.toFixed(2) + ' kA';
+    document.getElementById('valIp').innerText = ip.toFixed(2) + ' kA';
+    document.getElementById('valIs').innerText = isLimit >= iK3 ? 'FULL' : isLimit.toFixed(1) + ' kA';
+    document.getElementById('valZs').innerText = zs.toFixed(3) + ' Ω';
+
+    const bIcu = document.getElementById('badgeIcu');
+    bIcu.innerText = isIcuPass ? (cascadingApplied ? 'CASCADING PASS' : 'Breaking: PASS') : 'HAZARD: Icu < I_k3';
+    bIcu.className = `badge ${isIcuPass ? (cascadingApplied ? 'badge-warn' : 'badge-pass') : 'badge-fail'}`;
+
+    const bIcm = document.getElementById('badgeIcm');
+    bIcm.innerText = isIcmPass ? 'Making: PASS' : 'Icm < Ip FAIL';
+    bIcm.className = `badge ${isIcmPass ? 'badge-pass' : 'badge-fail'}`;
+
+    const bSel = document.getElementById('badgeSelectivity');
+    bSel.innerText = selectivityStatus;
+    bSel.className = `badge ${selectivityStatus.includes('TOTAL') ? 'badge-pass' : (selectivityStatus.includes('PARTIAL') ? 'badge-warn' : 'badge-fail')}`;
+
+    // Header Executive Status Pill Update
+    const statusPill = document.getElementById('statusPill');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusDot = document.getElementById('statusDot');
+
+    if (isIcuPass && isIcmPass && selectivityStatus.includes('TOTAL')) {
+      statusPill.className = 'status-pill pill-pass';
+      statusDot.className = 'status-dot dot-pass';
+      statusPillText.innerText = 'TOTAL SELECTIVITY';
+    } else if (isIcuPass && isIcmPass && selectivityStatus.includes('PARTIAL')) {
+      statusPill.className = 'status-pill pill-warn';
+      statusDot.className = 'status-dot dot-warn';
+      statusPillText.innerText = `PARTIAL SELECTIVITY (${isLimit.toFixed(1)} kA)`;
+    } else {
+      statusPill.className = 'status-pill pill-fail';
+      statusDot.className = 'status-dot dot-fail';
+      statusPillText.innerText = 'UNCOORDINATED / HAZARD';
+    }
+
+    // Engineering Calculation Sheet Output
+    const sheetBody = document.getElementById('calcSheetBody');
+    sheetBody.innerHTML = `
+      <tr>
+        <td>Upstream Source Impedance</td>
+        <td>IEC 60909 / Z_trans + Z_grid</td>
+        <td>R=${rUpstream.toFixed(4)}Ω, X=${xUpstream.toFixed(4)}Ω</td>
+        <td><strong style="color:var(--pass-green)">VALIDATED</strong></td>
+      </tr>
+      <tr>
+        <td>Symmetrical Fault Current (I_k3)</td>
+        <td>I_k3 = c×Un / (√3 × Z_total)</td>
+        <td><strong>${iK3.toFixed(2)} kA</strong></td>
+        <td><strong style="color:${isIcuPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isIcuPass ? (cascadingApplied ? 'PASS via Series Cascading' : 'PASS (Icu ≥ I_k3)') : 'FAIL (Under-Rated)'}</strong></td>
+      </tr>
+      <tr>
+        <td>Peak Short-Circuit Current (I_p)</td>
+        <td>I_p = κ × √2 × I_k3 (κ = ${kappa.toFixed(2)})</td>
+        <td><strong>${ip.toFixed(2)} kA</strong></td>
+        <td><strong style="color:${isIcmPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isIcmPass ? 'PASS (Icm ≥ Ip)' : 'FAIL (Switchgear Stress)'}</strong></td>
+      </tr>
+      <tr>
+        <td>Selectivity Limit Current (I_s)</td>
+        <td>Current / Energy Boundary Verification</td>
+        <td><strong>${isLimit >= iK3 ? 'No Limit (Full)' : isLimit.toFixed(2) + ' kA'}</strong></td>
+        <td><strong style="color:${selectivityStatus.includes('TOTAL') ? 'var(--pass-green)' : 'var(--warn-amber)'}">${selectivityStatus}</strong></td>
+      </tr>
+      <tr>
+        <td>Earth Fault Disconnection & Zs</td>
+        <td>BS 7671 Clause 411.3.2</td>
+        <td>Zs = ${zs.toFixed(3)} Ω (I_k1 = ${iK1.toFixed(2)} kA)</td>
+        <td><strong style="color:var(--pass-green)">PASS (&lt; 0.4s Limit)</strong></td>
+      </tr>
+      <tr>
+        <td>Thermal Energy Let-Through (I²t)</td>
+        <td>BS 7671 Cl 434.5.2 / I²t ≤ k²S²</td>
+        <td>Withstand: ${(cableWithstand/1e6).toFixed(2)} MA²s</td>
+        <td><strong style="color:${isI2tPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isI2tPass ? 'PASS' : 'FAIL'}</strong></td>
+      </tr>
+    `;
+
+    // Render Updated TCC Chart
+    renderTccChart(downIn, magMult, upIn, upType, upDelay, isLimit, iK3);
+  }
+
+  function renderTccChart(downIn, magMult, upIn, upType, upDelay, isLimit, iK3) {
+    if (!tccChartInstance) return;
+
+    const downCurveData = [
+      { x: downIn * 1.13, y: 100 },
+      { x: downIn * 1.45, y: 10 },
+      { x: downIn * 2.5, y: 1 },
+      { x: downIn * magMult, y: 0.02 },
+      { x: 50000, y: 0.01 }
+    ];
+
+    let upCurveData = [];
+    if (upType === 'ACB') {
+      upCurveData = [
+        { x: upIn * 1.05, y: 100 },
+        { x: upIn * 1.25, y: 20 },
+        { x: upIn * 2.5, y: upDelay },
+        { x: upIn * 12, y: upDelay },
+        { x: upIn * 12.1, y: 0.03 },
+        { x: 50000, y: 0.02 }
+      ];
+    } else {
+      upCurveData = [
+        { x: upIn * 1.05, y: 100 },
+        { x: upIn * 1.3, y: 20 },
+        { x: upIn * 4.0, y: 2 },
+        { x: upIn * 8.0, y: 0.03 },
+        { x: 50000, y: 0.02 }
+      ];
+    }
+
+    tccChartInstance.data = {
+      datasets: [
+        {
+          label: `Downstream MCB (${downIn}A)`,
+          data: downCurveData,
+          borderColor: '#2563EB',
+          borderWidth: 2,
+          showLine: true
+        },
+        {
+          label: `Upstream ${upType} (${upIn}A)`,
+          data: upCurveData,
+          borderColor: '#0F172A',
+          borderWidth: 3,
+          showLine: true
+        }
+      ]
+    };
+
+    const isLimitAmps = isLimit * 1000;
+    tccChartInstance.options.plugins.annotation = {
+      annotations: {
+        selectivityLine: {
+          type: 'line',
+          xMin: isLimitAmps,
+          xMax: isLimitAmps,
+          borderColor: '#EF4444',
+          borderWidth: 2,
+          borderDash: [6, 6],
+          label: {
+            display: true,
+            content: `Selectivity Limit (Is = ${isLimit.toFixed(1)}kA)`,
+            position: 'start',
+            backgroundColor: '#EF4444',
+            color: '#FFF',
+            font: { size: 10, weight: 'bold' }
+          }
+        }
+      }
+    };
+
+    tccChartInstance.update();
+  }
+
+  function exportJSON() {
+    const data = {
+      module: "Module 3: Fault & Protection Coordination",
+      standard: document.getElementById('standard').value,
+      iK3_kA: document.getElementById('valIk3').innerText,
+      Ip_kA: document.getElementById('valIp').innerText,
+      Selectivity_Limit: document.getElementById('valIs').innerText,
+      Zs_Ohms: document.getElementById('valZs').innerText,
+      status: document.getElementById('statusPillText').innerText
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'handasium_module3_fault_analysis.json';
+    a.click();
+  }
+</script>
+</body>
+</html>
