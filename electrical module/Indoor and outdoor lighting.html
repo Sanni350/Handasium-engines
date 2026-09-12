@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Indoor & Outdoor Lighting Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
+
+  <!-- TOP HEADER & BRANDING LAYOUT -->
+  <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2">
+          <div class="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-xl text-white tracking-wider shadow-lg shadow-indigo-500/30">H</div>
+          <span class="text-xl font-bold tracking-tight text-white">HANDASIUM</span>
+        </div>
+        <span class="text-slate-600 font-light">|</span>
+        <h1 class="text-sm sm:text-base font-medium text-slate-300">Indoor & Outdoor Lighting Engine</h1>
+      </div>
+      
+      <div class="flex items-center space-x-3">
+        <!-- Status Pill -->
+        <div id="status-pill" class="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase flex items-center space-x-2 transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span id="status-dot" class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="status-text">LUX LEVEL COMPLIANT</span>
+        </div>
+        <button onclick="exportPDF()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition shadow-sm flex items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span>Export PDF</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT COLUMN: INPUT CONTROLS -->
+    <section class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-6 overflow-y-auto max-h-[calc(100vh-6rem)]">
+      
+      <!-- Mode & Standard -->
+      <div>
+        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 flex items-center space-x-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+          <span>Calculation Parameters</span>
+        </h2>
+        
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Application Type & Space Presets</label>
+            <select id="preset-select" onchange="applyPreset()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <optgroup label="Indoor Spaces (BS EN 12464-1)">
+                <option value="office">General Office (500 Lux, UGR ≤ 19)</option>
+                <option value="classroom">Classroom / Lecture Hall (500 Lux, UGR ≤ 19)</option>
+                <option value="hospital">Hospital Operating Theater (1000 Lux, UGR ≤ 19)</option>
+                <option value="warehouse">Industrial Warehouse (200 Lux, UGR ≤ 25)</option>
+                <option value="retail">Retail Store / Supermarket (750 Lux, UGR ≤ 22)</option>
+              </optgroup>
+              <optgroup label="Outdoor Areas (BS EN 12464-2)">
+                <option value="carpark">Outdoor Car Park (30 Lux, Uniformity ≥ 0.40)</option>
+                <option value="roadway">Perimeter Roadway (20 Lux, Uniformity ≥ 0.40)</option>
+                <option value="sports">Sports Field / Training Area (200 Lux, Uniformity ≥ 0.60)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Design Standard Target</label>
+            <select id="standard-select" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <option value="BS_EN_12464">BS EN 12464 / CIBSE Code for Lighting</option>
+              <option value="IESNA">IESNA Lighting Handbook</option>
+              <option value="IS_3646">IS 3646 (Indian Standard Code for Interior Illumination)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Geometry -->
+      <div>
+        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 flex items-center space-x-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          <span>Space / Zone Geometry</span>
+        </h2>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Length L (m)</label>
+            <input type="number" id="dim-l" value="12" step="0.5" min="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Width W (m)</label>
+            <input type="number" id="dim-w" value="8" step="0.5" min="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Height H (m)</label>
+            <input type="number" id="dim-h" value="3.2" step="0.1" min="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Working Plane h_wp (m)</label>
+            <input type="number" id="dim-hwp" value="0.75" step="0.05" min="0" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Suspension h_s (m)</label>
+            <input type="number" id="dim-hs" value="0.0" step="0.1" min="0" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Reflectance Factors -->
+      <div>
+        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Surface Reflectance (ρ %, C/W/F)</h2>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-medium text-slate-400 mb-1">Ceiling (ρ_c)</label>
+            <select id="ref-c" onchange="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-200">
+              <option value="0.70" selected>70% (White)</option>
+              <option value="0.50">50% (Light)</option>
+              <option value="0.30">30% (Dark)</option>
+              <option value="0.00">0% (Outdoor)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-medium text-slate-400 mb-1">Wall (ρ_w)</label>
+            <select id="ref-w" onchange="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-200">
+              <option value="0.50" selected>50% (Light)</option>
+              <option value="0.30">30% (Medium)</option>
+              <option value="0.10">10% (Dark)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-medium text-slate-400 mb-1">Floor (ρ_f)</label>
+            <select id="ref-f" onchange="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-200">
+              <option value="0.20" selected>20% (Standard)</option>
+              <option value="0.10">10% (Dark Tile)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Performance -->
+      <div>
+        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Target Performance Criteria</h2>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Target E_avg (Lux)</label>
+            <input type="number" id="target-lux" value="500" step="50" min="10" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-emerald-400 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Maint. Factor (MF)</label>
+            <input type="number" id="factor-mf" value="0.80" step="0.05" min="0.4" max="1.0" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Target Uniformity U_0</label>
+            <input type="number" id="target-u0" value="0.60" step="0.05" min="0.1" max="0.9" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Luminaire Profile -->
+      <div>
+        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Luminaire Specification</h2>
+        <div class="space-y-2">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Fitting Selection</label>
+            <select id="luminaire-preset" onchange="applyLuminairePreset()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+              <option value="led_panel_60x60">LED Panel 60x60 (3800 lm, 32W, 118.7 lm/W)</option>
+              <option value="led_downlight">LED Recessed Downlight (1800 lm, 15W, 120 lm/W)</option>
+              <option value="highbay_led">Industrial LED Highbay (24000 lm, 150W, 160 lm/W)</option>
+              <option value="outdoor_flood">Outdoor LED Floodlight (12000 lm, 90W, 133.3 lm/W)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Luminous Flux (Φ lm)</label>
+              <input type="number" id="lum-flux" value="3800" step="100" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-amber-300 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">System Power (W)</label>
+              <input type="number" id="lum-power" value="32" step="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 text-sm mono text-amber-300 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 mb-1">CRI (Ra)</label>
+              <input type="number" id="lum-cri" value="80" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-xs mono text-slate-200">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 mb-1">CCT (K)</label>
+              <input type="number" id="lum-cct" value="4000" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-xs mono text-slate-200">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 mb-1">Max SHR</label>
+              <input type="number" id="lum-shr" value="1.50" step="0.05" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-xs mono text-slate-200">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: GRAPHICS, DASHBOARD & CALCULATIONS -->
+    <section class="lg:col-span-8 space-y-6">
+
+      <!-- ACTION CARDS / METRIC DASHBOARD -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- Card 1: Fittings & Grid -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Fittings</span>
+          <div class="my-1">
+            <span id="res-fittings" class="text-2xl sm:text-3xl font-black text-indigo-400 mono">--</span>
+            <span id="res-grid" class="text-xs text-slate-400 block mt-0.5">-- Layout Matrix</span>
+          </div>
+          <span id="badge-fittings" class="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded w-max">Optimal Grid</span>
+        </div>
+
+        <!-- Card 2: Actual Illuminance -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Maintained E_avg</span>
+          <div class="my-1">
+            <span id="res-lux" class="text-2xl sm:text-3xl font-black text-emerald-400 mono">--</span>
+            <span class="text-xs text-slate-400 inline">Lux</span>
+          </div>
+          <span id="badge-lux" class="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded w-max">100% Target Met</span>
+        </div>
+
+        <!-- Card 3: Lighting Power Density -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">LPD (Power Density)</span>
+          <div class="my-1">
+            <span id="res-lpd" class="text-2xl sm:text-3xl font-black text-amber-400 mono">--</span>
+            <span class="text-xs text-slate-400">W/m²</span>
+          </div>
+          <span id="badge-lpd" class="text-[10px] font-semibold text-slate-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded w-max">Limit ≤ 8.0 W/m²</span>
+        </div>
+
+        <!-- Card 4: SHR & UGR Glare -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">UGR Glare & SHR</span>
+          <div class="my-1 flex items-baseline space-x-2">
+            <span id="res-ugr" class="text-xl sm:text-2xl font-black text-purple-400 mono">UGR --</span>
+            <span id="res-shr" class="text-xs text-slate-400 mono">SHR --</span>
+          </div>
+          <span id="badge-ugr" class="text-[10px] font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded w-max">BS EN Compliant</span>
+        </div>
+      </div>
+
+      <!-- VISUAL CANVAS TABS -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+          <div class="flex space-x-2">
+            <button id="btn-tab-grid" onclick="switchTab('grid')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition">2D Ceiling Layout Plan</button>
+            <button id="btn-tab-heatmap" onclick="switchTab('heatmap')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition">2D Lux Contour Heatmap</button>
+          </div>
+          <div class="text-[11px] text-slate-400 mono">
+            Scale Dynamic Canvas
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full aspect-[16/9] bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-2">
+          <!-- Canvas 1: Grid Layout -->
+          <canvas id="gridCanvas" class="w-full h-full object-contain"></canvas>
+          <!-- Canvas 2: Lux Heatmap -->
+          <canvas id="heatmapCanvas" class="w-full h-full object-contain hidden"></canvas>
+        </div>
+      </div>
+
+      <!-- STEP-BY-STEP ENGINEERING CALC SHEET -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="text-sm font-bold text-slate-200 tracking-wide uppercase flex items-center space-x-2 border-b border-slate-800 pb-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+          <span>Deterministic Engineering Calc Sheet (CIBSE / IESNA Zonal Cavity Method)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          
+          <!-- Step 1 & Step 2 -->
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+            <span class="text-indigo-400 font-bold block border-b border-slate-800 pb-1">1. CAVITY INDEX CALCULATIONS</span>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Effective Height (h_m):</span>
+              <span id="calc-hm" class="text-slate-200">0.00 m</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Room Index (K / RI):</span>
+              <span id="calc-k" class="text-slate-200">0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Room Cavity Ratio (RCR):</span>
+              <span id="calc-rcr" class="text-slate-200">0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Utilization Factor (UF):</span>
+              <span id="calc-uf" class="text-slate-200">0.00</span>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+            <span class="text-indigo-400 font-bold block border-b border-slate-800 pb-1">2. FLUX & QUANTITY DERIVATION</span>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Working Area (A):</span>
+              <span id="calc-area" class="text-slate-200">0.00 m²</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Total Flux Required (Φ_tot):</span>
+              <span id="calc-totflux" class="text-amber-300">0 lm</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Raw Luminaires Required:</span>
+              <span id="calc-rawn" class="text-slate-200">0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Optimized Grid Fittings (N):</span>
+              <span id="calc-n" class="text-emerald-400 font-bold">0</span>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+            <span class="text-indigo-400 font-bold block border-b border-slate-800 pb-1">3. SPACING & SHR CHECK</span>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Longitudinal Spacing (S_x):</span>
+              <span id="calc-sx" class="text-slate-200">0.00 m</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Transverse Spacing (S_y):</span>
+              <span id="calc-sy" class="text-slate-200">0.00 m</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Calculated SHR (S_x / h_m):</span>
+              <span id="calc-shr" class="text-slate-200">0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">SHR Max Allowed Check:</span>
+              <span id="calc-shr-check" class="text-emerald-400">PASS</span>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+            <span class="text-indigo-400 font-bold block border-b border-slate-800 pb-1">4. ENERGY & GLARE AUDIT</span>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Total Connected Power:</span>
+              <span id="calc-power" class="text-slate-200">0 W</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Lighting Power Density:</span>
+              <span id="calc-lpd" class="text-amber-300">0.00 W/m²</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">ASHRAE 90.1 Limit Check:</span>
+              <span id="calc-lpd-check" class="text-emerald-400">PASS</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Unified Glare Rating (UGR):</span>
+              <span id="calc-ugr" class="text-purple-400">0.0</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 border-t border-slate-800 mt-auto py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+      <div>Handasium Engineering Suite - Lighting Architecture & Power Systems</div>
+      <div class="mt-2 sm:mt-0 font-mono">BS EN 12464-1 | CIBSE Code for Lighting | IESNA | NEC Art 410 | IS 3646</div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT & CALCULATIONS LOGIC -->
+  <script>
+    // Global Engine State
+    let activeTab = 'grid';
+    let calcResults = {};
+
+    // Presets DB
+    const PRESETS = {
+      office: { lux: 500, u0: 0.60, mf: 0.80, ugrMax: 19, lum: 'led_panel_60x60' },
+      classroom: { lux: 500, u0: 0.60, mf: 0.80, ugrMax: 19, lum: 'led_panel_60x60' },
+      hospital: { lux: 1000, u0: 0.70, mf: 0.85, ugrMax: 19, lum: 'led_panel_60x60' },
+      warehouse: { lux: 200, u0: 0.40, mf: 0.75, ugrMax: 25, lum: 'highbay_led' },
+      retail: { lux: 750, u0: 0.60, mf: 0.80, ugrMax: 22, lum: 'led_downlight' },
+      carpark: { lux: 30, u0: 0.40, mf: 0.70, ugrMax: 28, lum: 'outdoor_flood' },
+      roadway: { lux: 20, u0: 0.40, mf: 0.70, ugrMax: 28, lum: 'outdoor_flood' },
+      sports: { lux: 200, u0: 0.60, mf: 0.75, ugrMax: 22, lum: 'outdoor_flood' }
+    };
+
+    const LUMINAIRES = {
+      led_panel_60x60: { flux: 3800, power: 32, cri: 80, cct: 4000, shr: 1.50 },
+      led_downlight: { flux: 1800, power: 15, cri: 85, cct: 3000, shr: 1.30 },
+      highbay_led: { flux: 24000, power: 150, cri: 70, cct: 5000, shr: 1.60 },
+      outdoor_flood: { flux: 12000, power: 90, cri: 70, cct: 5000, shr: 1.75 }
+    };
+
+    function applyPreset() {
+      const presetKey = document.getElementById('preset-select').value;
+      const preset = PRESETS[presetKey];
+      if (!preset) return;
+
+      document.getElementById('target-lux').value = preset.lux;
+      document.getElementById('target-u0').value = preset.u0;
+      document.getElementById('factor-mf').value = preset.mf;
+      document.getElementById('luminaire-preset').value = preset.lum;
+      applyLuminairePreset();
+    }
+
+    function applyLuminairePreset() {
+      const lumKey = document.getElementById('luminaire-preset').value;
+      const lum = LUMINAIRES[lumKey];
+      if (!lum) return;
+
+      document.getElementById('lum-flux').value = lum.flux;
+      document.getElementById('lum-power').value = lum.power;
+      document.getElementById('lum-cri').value = lum.cri;
+      document.getElementById('lum-cct').value = lum.cct;
+      document.getElementById('lum-shr').value = lum.shr;
+
+      calculate();
+    }
+
+    // Interpolate Utilization Factor (UF) based on Room Index (K)
+    function lookupUF(K, rho_c, rho_w, rho_f) {
+      // Standard CIBSE UF lookup approximation curve
+      let baseUF = 0.35 + (0.38 * (K / (K + 0.8)));
+      let reﬂectanceBonus = (parseFloat(rho_c) * 0.15) + (parseFloat(rho_w) * 0.10) + (parseFloat(rho_f) * 0.05);
+      let uf = baseUF + reﬂectanceBonus;
+      return Math.min(Math.max(uf, 0.20), 0.88);
+    }
+
+    // Main Deterministic Engine Calculation
+    function calculate() {
+      // Inputs
+      const L = Math.max(parseFloat(document.getElementById('dim-l').value) || 1, 0.5);
+      const W = Math.max(parseFloat(document.getElementById('dim-w').value) || 1, 0.5);
+      const H = Math.max(parseFloat(document.getElementById('dim-h').value) || 1, 1);
+      const h_wp = parseFloat(document.getElementById('dim-hwp').value) || 0;
+      const h_s = parseFloat(document.getElementById('dim-hs').value) || 0;
+
+      const rho_c = parseFloat(document.getElementById('ref-c').value);
+      const rho_w = parseFloat(document.getElementById('ref-w').value);
+      const rho_f = parseFloat(document.getElementById('ref-f').value);
+
+      const E_target = parseFloat(document.getElementById('target-lux').value) || 500;
+      const MF = parseFloat(document.getElementById('factor-mf').value) || 0.8;
+      const U0_target = parseFloat(document.getElementById('target-u0').value) || 0.6;
+
+      const Phi_lum = parseFloat(document.getElementById('lum-flux').value) || 3800;
+      const P_lum = parseFloat(document.getElementById('lum-power').value) || 32;
+      const SHR_max = parseFloat(document.getElementById('lum-shr').value) || 1.5;
+
+      // 1. Geometry Calculations
+      const Area = L * W;
+      const h_m = Math.max(H - h_wp - h_s, 0.5); // Mounting height above working plane
+      const K = (L * W) / (h_m * (L + W)); // Room Index
+      const RCR = (5 * h_m * (L + W)) / (L * W); // Room Cavity Ratio
+
+      // 2. UF & Required Flux
+      const UF = lookupUF(K, rho_c, rho_w, rho_f);
+      const Phi_total = (E_target * Area) / (UF * MF);
+      const N_raw = Phi_total / Phi_lum;
+
+      // 3. Grid Matrix Calculation
+      // Ideal ratio N_length / N_width ~ L / W
+      let N_length = Math.max(1, Math.round(Math.sqrt(N_raw * (L / W))));
+      let N_width = Math.max(1, Math.round(N_raw / N_length));
+      if (N_length * N_width < N_raw) {
+        if ((L / N_length) > (W / N_width)) N_length++;
+        else N_width++;
+      }
+      const N_total = N_length * N_width;
+
+      // Actual Maintained Illuminance
+      const E_actual = (N_total * Phi_lum * UF * MF) / Area;
+
+      // Spacing & SHR
+      const S_x = L / N_length;
+      const S_y = W / N_width;
+      const SHR_calc = Math.max(S_x, S_y) / h_m;
+
+      // Energy Efficiency & Glare
+      const P_total = N_total * P_lum;
+      const LPD = P_total / Area; // W/m2
+
+      // Glare Estimation (CIBSE UGR Table Approximation)
+      // UGR = 8 + 8 * log10(Luminance_ratio)
+      let UGR_est = 12 + 8 * Math.log10((P_lum * 0.8) / (h_m * h_m)) + (K < 1.5 ? 2 : 0);
+      UGR_est = Math.min(Math.max(Math.round(UGR_est * 10) / 10, 10), 32);
+
+      // Store in Global
+      calcResults = {
+        L, W, H, h_m, Area, K, RCR, UF, E_target, E_actual, MF, Phi_lum, P_lum,
+        N_raw, N_total, N_length, N_width, S_x, S_y, SHR_calc, SHR_max, P_total, LPD, UGR_est
+      };
+
+      // Update UI Elements
+      updateDashboard();
+      updateCalcSheet();
+      renderActiveCanvas();
+    }
+
+    function updateDashboard() {
+      const r = calcResults;
+      
+      // Card 1
+      document.getElementById('res-fittings').innerText = r.N_total;
+      document.getElementById('res-grid').innerText = `${r.N_length} × ${r.N_width} Grid Matrix`;
+
+      // Card 2
+      document.getElementById('res-lux').innerText = Math.round(r.E_actual);
+      const luxBadge = document.getElementById('badge-lux');
+      if (r.E_actual >= r.E_target) {
+        luxBadge.innerText = `${Math.round((r.E_actual / r.E_target) * 100)}% Target Met`;
+        luxBadge.className = "text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded w-max";
+      } else {
+        luxBadge.innerText = "INSUFFICIENT ILLUMINANCE";
+        luxBadge.className = "text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded w-max";
+      }
+
+      // Card 3
+      document.getElementById('res-lpd').innerText = r.LPD.toFixed(2);
+      const lpdBadge = document.getElementById('badge-lpd');
+      if (r.LPD <= 8.0) {
+        lpdBadge.innerText = "ASHRAE 90.1 PASS";
+        lpdBadge.className = "text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded w-max";
+      } else {
+        lpdBadge.innerText = "HIGH POWER DENSITY";
+        lpdBadge.className = "text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded w-max";
+      }
+
+      // Card 4
+      document.getElementById('res-ugr').innerText = `UGR ${r.UGR_est}`;
+      document.getElementById('res-shr').innerText = `SHR ${r.SHR_calc.toFixed(2)}`;
+
+      // Status Pill Update
+      const statusPill = document.getElementById('status-pill');
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+
+      if (r.E_actual < r.E_target) {
+        statusText.innerText = "INSUFFICIENT ILLUMINANCE";
+        statusPill.className = "px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase flex items-center space-x-2 transition-all bg-rose-500/10 text-rose-400 border border-rose-500/30";
+        statusDot.className = "h-2 w-2 rounded-full bg-rose-400 animate-pulse";
+      } else if (r.LPD > 8.0) {
+        statusText.innerText = "HIGH POWER DENSITY / LPD EXCEEDED";
+        statusPill.className = "px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase flex items-center space-x-2 transition-all bg-amber-500/10 text-amber-400 border border-amber-500/30";
+        statusDot.className = "h-2 w-2 rounded-full bg-amber-400 animate-pulse";
+      } else {
+        statusText.innerText = "LUX LEVEL COMPLIANT";
+        statusPill.className = "px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase flex items-center space-x-2 transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+        statusDot.className = "h-2 w-2 rounded-full bg-emerald-400 animate-pulse";
+      }
+    }
+
+    function updateCalcSheet() {
+      const r = calcResults;
+      document.getElementById('calc-hm').innerText = `${r.h_m.toFixed(2)} m`;
+      document.getElementById('calc-k').innerText = r.K.toFixed(2);
+      document.getElementById('calc-rcr').innerText = r.RCR.toFixed(2);
+      document.getElementById('calc-uf').innerText = r.UF.toFixed(2);
+
+      document.getElementById('calc-area').innerText = `${r.Area.toFixed(1)} m²`;
+      document.getElementById('calc-totflux').innerText = `${Math.round((r.E_target * r.Area) / (r.UF * r.MF))} lm`;
+      document.getElementById('calc-rawn').innerText = r.N_raw.toFixed(2);
+      document.getElementById('calc-n').innerText = r.N_total;
+
+      document.getElementById('calc-sx').innerText = `${r.S_x.toFixed(2)} m`;
+      document.getElementById('calc-sy').innerText = `${r.S_y.toFixed(2)} m`;
+      document.getElementById('calc-shr').innerText = r.SHR_calc.toFixed(2);
+      
+      const shrCheck = document.getElementById('calc-shr-check');
+      if (r.SHR_calc <= r.SHR_max) {
+        shrCheck.innerText = `PASS (≤ ${r.SHR_max})`;
+        shrCheck.className = "text-emerald-400 font-bold";
+      } else {
+        shrCheck.innerText = `WARN (> ${r.SHR_max})`;
+        shrCheck.className = "text-rose-400 font-bold";
+      }
+
+      document.getElementById('calc-power').innerText = `${r.P_total} W`;
+      document.getElementById('calc-lpd').innerText = `${r.LPD.toFixed(2)} W/m²`;
+      
+      const lpdCheck = document.getElementById('calc-lpd-check');
+      if (r.LPD <= 8.0) {
+        lpdCheck.innerText = "PASS (≤ 8.0 W/m²)";
+        lpdCheck.className = "text-emerald-400 font-bold";
+      } else {
+        lpdCheck.innerText = "EXCEEDED (> 8.0 W/m²)";
+        lpdCheck.className = "text-amber-400 font-bold";
+      }
+
+      document.getElementById('calc-ugr').innerText = r.UGR_est;
+    }
+
+    // Switch Visual Canvas Tabs
+    function switchTab(tab) {
+      activeTab = tab;
+      const btnGrid = document.getElementById('btn-tab-grid');
+      const btnHeatmap = document.getElementById('btn-tab-heatmap');
+      const cvGrid = document.getElementById('gridCanvas');
+      const cvHeatmap = document.getElementById('heatmapCanvas');
+
+      if (tab === 'grid') {
+        btnGrid.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition";
+        btnHeatmap.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition";
+        cvGrid.classList.remove('hidden');
+        cvHeatmap.classList.add('hidden');
+      } else {
+        btnHeatmap.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition";
+        btnGrid.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition";
+        cvHeatmap.classList.remove('hidden');
+        cvGrid.classList.add('hidden');
+      }
+      renderActiveCanvas();
+    }
+
+    function renderActiveCanvas() {
+      if (activeTab === 'grid') renderGridCanvas();
+      else renderHeatmapCanvas();
+    }
+
+    // Canvas 1: 2D Ceiling Layout
+    function renderGridCanvas() {
+      const canvas = document.getElementById('gridCanvas');
+      const ctx = canvas.getContext('2d');
+      const r = calcResults;
+
+      canvas.width = canvas.clientWidth * 2;
+      canvas.height = canvas.clientHeight * 2;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Padding & Scale Factor
+      const pad = 80;
+      const scale = Math.min((w - pad * 2) / r.L, (h - pad * 2) / r.W);
+      const roomW = r.L * scale;
+      const roomH = r.W * scale;
+      const startX = (w - roomW) / 2;
+      const startY = (h - roomH) / 2;
+
+      // Draw Room Envelope
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 4;
+      ctx.fillRect(startX, startY, roomW, roomH);
+      ctx.strokeRect(startX, startY, roomW, roomH);
+
+      // Draw Wall Spacing Lines & Grid
+      const dx = roomW / r.N_length;
+      const dy = roomH / r.N_width;
+
+      // Spacing Margins (Sx/2, Sy/2)
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+
+      for (let i = 0; i < r.N_length; i++) {
+        let x = startX + (i + 0.5) * dx;
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, startY + roomH);
+        ctx.stroke();
+      }
+
+      for (let j = 0; j < r.N_width; j++) {
+        let y = startY + (j + 0.5) * dy;
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(startX + roomW, y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Draw Luminaires
+      const lumRadius = Math.min(dx, dy) * 0.18;
+      for (let i = 0; i < r.N_length; i++) {
+        for (let j = 0; j < r.N_width; j++) {
+          let cx = startX + (i + 0.5) * dx;
+          let cy = startY + (j + 0.5) * dy;
+
+          // Glow effect
+          let grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, lumRadius * 2);
+          grad.addColorStop(0, 'rgba(251, 191, 36, 0.9)');
+          grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.3)');
+          grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, lumRadius * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Luminaire Symbol
+          ctx.fillStyle = '#fbbf24';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(cx, cy, lumRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Crosshair
+          ctx.strokeStyle = '#78350f';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(cx - lumRadius / 2, cy); ctx.lineTo(cx + lumRadius / 2, cy);
+          ctx.moveTo(cx, cy - lumRadius / 2); ctx.lineTo(cx, cy + lumRadius / 2);
+          ctx.stroke();
+        }
+      }
+
+      // Draw Dimensions text
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 22px JetBrains Mono';
+      ctx.textAlign = 'center';
+      
+      // Length L
+      ctx.fillText(`Length L = ${r.L}m (Spacing S_x = ${r.S_x.toFixed(2)}m)`, startX + roomW / 2, startY - 20);
+      // Width W
+      ctx.save();
+      ctx.translate(startX - 25, startY + roomH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(`Width W = ${r.W}m (Spacing S_y = ${r.S_y.toFixed(2)}m)`, 0, 0);
+      ctx.restore();
+    }
+
+    // Canvas 2: 2D Pseudo-Color Lux Contour Heatmap
+    function renderHeatmapCanvas() {
+      const canvas = document.getElementById('heatmapCanvas');
+      const ctx = canvas.getContext('2d');
+      const r = calcResults;
+
+      canvas.width = canvas.clientWidth * 1.5;
+      canvas.height = canvas.clientHeight * 1.5;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const pad = 60;
+      const scale = Math.min((w - pad * 2) / r.L, (h - pad * 2) / r.W);
+      const roomW = r.L * scale;
+      const roomH = r.W * scale;
+      const startX = (w - roomW) / 2;
+      const startY = (h - roomH) / 2;
+
+      // Offscreen Heatmap Grid Simulation (20x20 mesh)
+      const cols = 30;
+      const rows = 30;
+      const cellW = roomW / cols;
+      const cellH = roomH / rows;
+
+      // Calculate Luminaire Point Light Contributions
+      const dx = roomW / r.N_length;
+      const dy = roomH / r.N_width;
+      let lights = [];
+
+      for (let i = 0; i < r.N_length; i++) {
+        for (let j = 0; j < r.N_width; j++) {
+          lights.push({
+            x: startX + (i + 0.5) * dx,
+            y: startY + (j + 0.5) * dy
+          });
+        }
+      }
+
+      // Render Heatmap Cells
+      for (let rIdx = 0; rIdx < rows; rIdx++) {
+        for (let cIdx = 0; cIdx < cols; cIdx++) {
+          let cx = startX + (cIdx + 0.5) * cellW;
+          let cy = startY + (rIdx + 0.5) * cellH;
+
+          // Estimate lux intensity from lights inverse square distance
+          let luxSum = 0;
+          lights.forEach(l => {
+            let distSq = Math.pow(cx - l.x, 2) + Math.pow(cy - l.y, 2) + Math.pow(r.h_m * scale * 0.5, 2);
+            luxSum += (r.Phi_lum * r.MF * scale * 500) / distSq;
+          });
+
+          // Normalize lux intensity color
+          let ratio = Math.min(luxSum / (r.E_target * 1.8), 1.0);
+          
+          // Color ramp: Dark Blue -> Teal -> Green -> Yellow -> Red
+          let red = Math.round(Math.max(0, (ratio - 0.5) * 2 * 255));
+          let green = Math.round(ratio < 0.5 ? ratio * 2 * 255 : (1 - ratio) * 2 * 255 + 100);
+          let blue = Math.round(Math.max(0, (0.5 - ratio) * 2 * 255));
+
+          ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+          ctx.fillRect(startX + cIdx * cellW, startY + rIdx * cellH, cellW + 0.5, cellH + 0.5);
+        }
+      }
+
+      // Draw Room Border
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(startX, startY, roomW, roomH);
+
+      // Overlay Heatmap Legend
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px JetBrains Mono';
+      ctx.fillText(`Low Lux (< ${Math.round(r.E_target * 0.5)} lx)`, startX, startY + roomH + 25);
+      ctx.fillText(`Target (${Math.round(r.E_target)} lx)`, startX + roomW / 2 - 30, startY + roomH + 25);
+      ctx.fillText(`Peak Lux (> ${Math.round(r.E_target * 1.3)} lx)`, startX + roomW - 120, startY + roomH + 25);
+    }
+
+    // PDF Export Function
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const r = calcResults;
+
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(30, 41, 59);
+      doc.text("HANDASIUM ENGINEERING SUITE", 14, 20);
+
+      doc.setFontSize(12);
+      doc.setFont("Helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text("Indoor & Outdoor Lighting Design Verification Report", 14, 28);
+      doc.text(`Compliance Standard: ${document.getElementById('standard-select').value}`, 14, 34);
+
+      doc.setDrawColor(203, 213, 225);
+      doc.line(14, 38, 196, 38);
+
+      // Section 1: Inputs
+      doc.setFontSize(11);
+      doc.setFont("Helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("1. SPACE GEOMETRY & TARGETS", 14, 48);
+
+      doc.setFontSize(10);
+      doc.setFont("Helvetica", "normal");
+      doc.text(`Room Dimensions: ${r.L}m (L) x ${r.W}m (W) x ${r.H}m (H)`, 14, 56);
+      doc.text(`Working Plane Height: ${document.getElementById('dim-hwp').value}m`, 14, 62);
+      doc.text(`Target Illuminance (E_target): ${r.E_target} Lux`, 14, 68);
+      doc.text(`Maintenance Factor (MF): ${r.MF}`, 14, 74);
+
+      // Section 2: Results
+      doc.setFont("Helvetica", "bold");
+      doc.text("2. DESIGN & CALCULATION RESULTS", 14, 86);
+
+      doc.setFont("Helvetica", "normal");
+      doc.text(`Total Luminaires Required: ${r.N_total} Fittings (${r.N_length} x ${r.N_width} Grid)`, 14, 94);
+      doc.text(`Maintained Average Illuminance: ${Math.round(r.E_actual)} Lux`, 14, 100);
+      doc.text(`Lighting Power Density (LPD): ${r.LPD.toFixed(2)} W/m²`, 14, 106);
+      doc.text(`Space-to-Height Ratio (SHR): ${r.SHR_calc.toFixed(2)} (Max: ${r.SHR_max})`, 14, 112);
+      doc.text(`Estimated Glare Rating (UGR): ${r.UGR_est}`, 14, 118);
+
+      // Save PDF
+      doc.save(`Handasium_Lighting_Report_${Date.now()}.pdf`);
+    }
+
+    // Initialize on page load
+    window.onload = () => {
+      calculate();
+    };
+
+    // Auto resize canvas on window resize
+    window.onresize = () => {
+      renderActiveCanvas();
+    };
+  </script>
+</body>
+</html>

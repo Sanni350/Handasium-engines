@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handasium - Electrical SLD & BOQ Engine</title>
+    <!-- SheetJS for real XLSX generation -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); padding: 20px; font-size: 13px; }
+
+        .container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 15px 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+        .brand span { color: var(--accent-blue); font-size: 13px; font-weight: 500; }
+        .status-pill { padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 11px; text-transform: uppercase; background: rgba(34, 197, 94, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .status-pill.warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border-color: var(--accent-amber); }
+
+        /* Controls Bar */
+        .controls-bar { display: flex; gap: 15px; background: var(--panel-bg); padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border-color); align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 600; }
+        select, input[type="text"], input[type="number"] { background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 6px 10px; border-radius: 4px; font-size: 12px; }
+        button { background: #0284c7; color: white; border: none; padding: 7px 14px; border-radius: 4px; font-weight: 600; cursor: pointer; transition: background 0.2s; font-size: 12px; }
+        button:hover { background: #0369a1; }
+        button.secondary { background: #475569; }
+        button.secondary:hover { background: #334155; }
+
+        /* Metric Cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        .card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; }
+        .card-title { color: var(--text-muted); font-size: 11px; text-transform: uppercase; margin-bottom: 6px; }
+        .card-value { font-size: 20px; font-weight: 700; color: var(--text-main); }
+        .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Canvas & Content Panels */
+        .panel { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .panel-title { font-size: 14px; font-weight: 600; color: var(--accent-blue); }
+
+        /* SVG Diagram */
+        #sld-canvas-container { width: 100%; height: 350px; background: #090d16; border-radius: 6px; border: 1px solid var(--border-color); overflow: auto; position: relative; }
+        svg { width: 100%; height: 100%; min-width: 800px; min-height: 330px; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 12px; }
+        th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px; background: rgba(0,0,0,0.2); }
+        td input { width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 4px; border-radius: 3px; }
+        td input:focus { border-color: var(--accent-blue); outline: none; }
+        .summary-row { font-weight: 700; background: rgba(56, 189, 248, 0.05); }
+        .grand-total { font-size: 14px; color: var(--accent-green); }
+
+        .flex-right { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 1. Header & Branding -->
+    <header>
+        <div class="brand">
+            <h1>HANDASIUM</h1>
+            <span>| Electrical SLD & BOQ Engine</span>
+        </div>
+        <div id="status-pill" class="status-pill">SLD READY - FULLY COORDINATED</div>
+    </header>
+
+    <!-- 2. Controls & Configuration -->
+    <div class="controls-bar">
+        <div class="control-group">
+            <label for="std-select">Standard:</label>
+            <select id="std-select">
+                <option value="IEC">IEC / BS 7671</option>
+                <option value="NEC">NEC / NFPA 70</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="currency-select">Currency:</label>
+            <select id="currency-select" onchange="handleCurrencyChange()">
+                <option value="$">USD ($)</option>
+                <option value="€">EUR (€)</option>
+                <option value="£">GBP (£)</option>
+                <option value="₦">NGN (₦)</option>
+                <option value="KSh">KES (KSh)</option>
+                <option value="R">ZAR (R)</option>
+                <option value="GH₵">GHS (GH₵)</option>
+                <option value="OTHER">Other Currency</option>
+            </select>
+            <input type="text" id="custom-currency" placeholder="Code (e.g. AED)" style="display:none; width:80px;" oninput="updateCurrencySymbol()">
+        </div>
+
+        <button onclick="optimizePhaseBalance()">Auto-Balance Phases</button>
+        <button class="secondary" onclick="resetRates()">Reset Standard Rates</button>
+    </div>
+
+    <!-- 3. Executive Metrics -->
+    <div class="metrics-grid">
+        <div class="card">
+            <div class="card-title">Total Connected Load / Max Demand</div>
+            <div class="card-value" id="metric-demand">0 kVA / 0 kVA</div>
+            <div class="card-sub" id="metric-current">Operating Current: 0 A</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Phase Imbalance Ratio</div>
+            <div class="card-value" id="metric-imbalance">0.0%</div>
+            <div class="card-sub" id="metric-phase-split">L1: 0 | L2: 0 | L3: 0 (kW)</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Main Switchgear & Busbar</div>
+            <div class="card-value" id="metric-busbar">0 A Busbar</div>
+            <div class="card-sub">Min Breaker Frame Rating</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Grand Total BOQ Estimate</div>
+            <div class="card-value" style="color:var(--accent-green)" id="metric-grand-total">$0.00</div>
+            <div class="card-sub">Includes Material, Labor & Markup</div>
+        </div>
+    </div>
+
+    <!-- 4. Interactive Vector SLD Canvas -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Single Line Diagram (IEC 60617 Visual Graph)</span>
+            <div style="display:flex; gap:8px;">
+                <button class="secondary" onclick="exportSVG()">Export SVG</button>
+                <button class="secondary" onclick="exportDXF()">Export DXF</button>
+            </div>
+        </div>
+        <div id="sld-canvas-container">
+            <svg id="sld-svg" viewBox="0 0 900 320">
+                <!-- SVG Content Rendered via JS -->
+            </svg>
+        </div>
+    </div>
+
+    <!-- 5. Interactive BOQ Engine (NRM Compliant) -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Costed Bill of Quantities & Material Take-Off (NRM Standard)</span>
+            <div style="display:flex; gap:8px;">
+                <button class="secondary" onclick="exportCSV()">Export CSV</button>
+                <button onclick="exportXLSX()">Export XLSX</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Item</th>
+                    <th>Description</th>
+                    <th style="width: 60px;">Unit</th>
+                    <th style="width: 70px;">Qty</th>
+                    <th style="width: 120px;">Unit Mat. Rate (<span class="curr-symbol">$</span>)</th>
+                    <th style="width: 120px;">Unit Lab. Rate (<span class="curr-symbol">$</span>)</th>
+                    <th style="width: 130px; text-align:right;">Line Total (<span class="curr-symbol">$</span>)</th>
+                </tr>
+            </thead>
+            <tbody id="boq-tbody">
+                <!-- Dynamic Rows -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Default Data State
+let activeCurrency = "$";
+
+const defaultBoqItems = [
+    { id: "1.1", desc: "Main Intake Transformer 11kV/400V 500kVA (Cast Resin)", unit: "Nr", qty: 1, mat: 18500, lab: 2200 },
+    { id: "1.2", desc: "Main Incoming Air Circuit Breaker (ACB) 3P 800A 50kA", unit: "Nr", qty: 1, mat: 4200, lab: 450 },
+    { id: "1.3", desc: "Main Distribution Board Enclosure (MDB-01 Form 4b)", unit: "Item", qty: 1, mat: 5500, lab: 1200 },
+    { id: "2.1", desc: "Feeder Cable: 4xC 185mm² XLPE/SWA/Cu + 1x95mm² CPC", unit: "m", qty: 120, mat: 85, lab: 25 },
+    { id: "2.2", desc: "Sub-Distribution Board SDB-POWER 250A MCCB Intake", unit: "Nr", qty: 1, mat: 1850, lab: 350 },
+    { id: "2.3", desc: "Sub-Distribution Board SDB-LIGHTING 125A MCB Intake", unit: "Nr", qty: 1, mat: 1100, lab: 250 },
+    { id: "3.1", desc: "Branch Wiring Cables 3x2.5mm² LSF Cu (Incl. 10% Wastage)", unit: "m", qty: 850, mat: 2.2, lab: 3.5 },
+    { id: "3.2", desc: "Branch Wiring Cables 3x4.0mm² LSF Cu (Incl. 10% Wastage)", unit: "m", qty: 450, mat: 3.4, lab: 4.0 },
+    { id: "4.1", desc: "Earthing System: Copper Earth Rods, Inspection Pit & Tape", unit: "Lot", qty: 1, mat: 1250, lab: 650 }
+];
+
+let boqData = JSON.parse(JSON.stringify(defaultBoqItems));
+
+let circuits = [
+    { id: "C1", name: "HVAC Chiller Load", p_kw: 45, pf: 0.85, phase: "3P", type: "HVAC" },
+    { id: "C2", name: "Data Center UPS Intake", p_kw: 30, pf: 0.95, phase: "3P", type: "Power" },
+    { id: "C3", name: "Floor 1 Lighting Array", p_kw: 12, pf: 0.90, phase: "L1", type: "Lighting" },
+    { id: "C4", name: "Floor 2 Lighting Array", p_kw: 14, pf: 0.90, phase: "L2", type: "Lighting" },
+    { id: "C5", name: "Floor 3 Lighting Array", p_kw: 8,  pf: 0.90, phase: "L3", type: "Lighting" },
+    { id: "C6", name: "Server Room Power Sockets", p_kw: 18, pf: 0.92, phase: "L1", type: "Power" },
+    { id: "C7", name: "Executive Office Outlets", p_kw: 15, pf: 0.88, phase: "L2", type: "Power" }
+];
+
+// Initialize
+window.onload = () => {
+    renderBOQTable();
+    recalculateSystem();
+};
+
+function handleCurrencyChange() {
+    const sel = document.getElementById("currency-select").value;
+    const customInp = document.getElementById("custom-currency");
+    if (sel === "OTHER") {
+        customInp.style.display = "inline-block";
+        activeCurrency = customInp.value || "CUSTOM";
+    } else {
+        customInp.style.display = "none";
+        activeCurrency = sel;
+    }
+    updateCurrencySymbol();
+}
+
+function updateCurrencySymbol() {
+    if (document.getElementById("currency-select").value === "OTHER") {
+        activeCurrency = document.getElementById("custom-currency").value || "Units";
+    }
+    document.querySelectorAll(".curr-symbol").forEach(el => el.innerText = activeCurrency);
+    recalculateBOQTotals();
+}
+
+function resetRates() {
+    boqData = JSON.parse(JSON.stringify(defaultBoqItems));
+    renderBOQTable();
+    recalculateBOQTotals();
+}
+
+function renderBOQTable() {
+    const tbody = document.getElementById("boq-tbody");
+    tbody.innerHTML = "";
+
+    boqData.forEach((item, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${item.id}</td>
+            <td>${item.desc}</td>
+            <td>${item.unit}</td>
+            <td><input type="number" value="${item.qty}" oninput="updateBoqItem(${idx}, 'qty', this.value)"></td>
+            <td><input type="number" step="0.01" value="${item.mat}" oninput="updateBoqItem(${idx}, 'mat', this.value)"></td>
+            <td><input type="number" step="0.01" value="${item.lab}" oninput="updateBoqItem(${idx}, 'lab', this.value)"></td>
+            <td style="text-align:right; font-weight:600;" id="line-total-${idx}">0.00</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Append Summary Rows
+    tbody.innerHTML += `
+        <tr class="summary-row">
+            <td colspan="6" style="text-align:right;">Direct Subtotal:</td>
+            <td style="text-align:right;" id="boq-subtotal">0.00</td>
+        </tr>
+        <tr class="summary-row">
+            <td colspan="6" style="text-align:right;">Contingency Allowance (5%):</td>
+            <td style="text-align:right;" id="boq-contingency">0.00</td>
+        </tr>
+        <tr class="summary-row grand-total">
+            <td colspan="6" style="text-align:right;">Grand Total Project Cost:</td>
+            <td style="text-align:right;" id="boq-grandtotal">0.00</td>
+        </tr>
+    `;
+    updateCurrencySymbol();
+}
+
+function updateBoqItem(idx, field, value) {
+    boqData[idx][field] = parseFloat(value) || 0;
+    recalculateBOQTotals();
+}
+
+function recalculateBOQTotals() {
+    let subtotal = 0;
+    boqData.forEach((item, idx) => {
+        const lineTotal = item.qty * (item.mat + item.lab);
+        subtotal += lineTotal;
+        const lineEl = document.getElementById(`line-total-${idx}`);
+        if (lineEl) lineEl.innerText = lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    });
+
+    const contingency = subtotal * 0.05;
+    const grandTotal = subtotal + contingency;
+
+    document.getElementById("boq-subtotal").innerText = activeCurrency + " " + subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById("boq-contingency").innerText = activeCurrency + " " + contingency.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById("boq-grandtotal").innerText = activeCurrency + " " + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById("metric-grand-total").innerText = activeCurrency + " " + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function recalculateSystem() {
+    // Phase Balancing Computation
+    let p1 = 0, p2 = 0, p3 = 0;
+    let totalKva = 0;
+
+    circuits.forEach(c => {
+        const kva = c.p_kw / c.pf;
+        totalKva += kva;
+        if (c.phase === "3P") {
+            p1 += c.p_kw / 3;
+            p2 += c.p_kw / 3;
+            p3 += c.p_kw / 3;
+        } else if (c.phase === "L1") p1 += c.p_kw;
+        else if (c.phase === "L2") p2 += c.p_kw;
+        else if (c.phase === "L3") p3 += c.p_kw;
+    });
+
+    const pAvg = (p1 + p2 + p3) / 3;
+    const maxDev = Math.max(Math.abs(p1 - pAvg), Math.abs(p2 - pAvg), Math.abs(p3 - pAvg));
+    const imbalance = pAvg > 0 ? (maxDev / pAvg) * 100 : 0;
+
+    // Diversity Factor (BS 7671)
+    const maxDemandKva = totalKva * 0.75;
+    const iDesign = (maxDemandKva * 1000) / (Math.sqrt(3) * 400);
+
+    // Busbar sizing (1.25x safety factor)
+    const busbarRating = Math.ceil((iDesign * 1.25) / 100) * 100;
+
+    // Update UI Metrics
+    document.getElementById("metric-demand").innerText = `${totalKva.toFixed(1)} kVA / ${maxDemandKva.toFixed(1)} kVA`;
+    document.getElementById("metric-current").innerText = `Operating Current: ${iDesign.toFixed(1)} A`;
+    document.getElementById("metric-imbalance").innerText = `${imbalance.toFixed(1)}%`;
+    document.getElementById("metric-phase-split").innerText = `L1: ${p1.toFixed(1)} | L2: ${p2.toFixed(1)} | L3: ${p3.toFixed(1)} (kW)`;
+    document.getElementById("metric-busbar").innerText = `${busbarRating} A Busbar`;
+
+    const pill = document.getElementById("status-pill");
+    if (imbalance > 10) {
+        pill.innerText = "UNBALANCED PANELS DETECTED";
+        pill.className = "status-pill warning";
+    } else {
+        pill.innerText = "SLD READY - FULLY COORDINATED";
+        pill.className = "status-pill";
+    }
+
+    renderSVG(busbarRating);
+    recalculateBOQTotals();
+}
+
+function optimizePhaseBalance() {
+    // Greedy auto-balancing single phase loads
+    let p = { L1: 0, L2: 0, L3: 0 };
+    
+    // First aggregate 3P loads
+    circuits.filter(c => c.phase === "3P").forEach(c => {
+        p.L1 += c.p_kw / 3; p.L2 += c.p_kw / 3; p.L3 += c.p_kw / 3;
+    });
+
+    // Reassign single phase loads descending
+    const singlePhase = circuits.filter(c => c.phase !== "3P").sort((a,b) => b.p_kw - a.p_kw);
+    singlePhase.forEach(c => {
+        const minPhase = Object.keys(p).reduce((a, b) => p[a] < p[b] ? a : b);
+        c.phase = minPhase;
+        p[minPhase] += c.p_kw;
+    });
+
+    recalculateSystem();
+}
+
+function renderSVG(busbarRating) {
+    const svg = document.getElementById("sld-svg");
+    svg.innerHTML = `
+        <!-- Grid Intake & Transformer -->
+        <text x="50" y="30" fill="#94a3b8" font-size="12" font-weight="bold">11kV Utility Grid Intake</text>
+        <circle cx="90" cy="55" r="15" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <circle cx="90" cy="75" r="15" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <line x1="90" y1="90" x2="90" y2="120" stroke="#38bdf8" stroke-width="2"/>
+        
+        <!-- Main ACB -->
+        <rect x="75" y="120" width="30" height="30" stroke="#22c55e" stroke-width="2" fill="#1e293b"/>
+        <text x="115" y="140" fill="#f8fafc" font-size="11">Main ACB (800A 50kA)</text>
+        <line x1="90" y1="150" x2="90" y2="190" stroke="#38bdf8" stroke-width="2"/>
+
+        <!-- Main MDB Busbar -->
+        <line x1="50" y1="190" x2="800" y2="190" stroke="#f59e0b" stroke-width="6"/>
+        <text x="50" y="180" fill="#f59e0b" font-size="12" font-weight="bold">MDB-01 Busbar Rating: ${busbarRating}A (400V 3Ph 50Hz)</text>
+
+        <!-- Branch Feeders -->
+        ${circuits.map((c, i) => {
+            const x = 90 + i * 105;
+            const color = c.phase === "L1" ? "#ef4444" : c.phase === "L2" ? "#f59e0b" : c.phase === "L3" ? "#38bdf8" : "#22c55e";
+            return `
+                <line x1="${x}" y1="190" x2="${x}" y2="230" stroke="#94a3b8" stroke-width="2"/>
+                <rect x="${x-12}" y="230" width="24" height="20" stroke="${color}" stroke-width="2" fill="#1e293b"/>
+                <line x1="${x}" y1="250" x2="${x}" y2="275" stroke="#94a3b8" stroke-width="2"/>
+                <circle cx="${x}" cy="280" r="5" fill="${color}"/>
+                <text x="${x-35}" y="300" fill="#f8fafc" font-size="10">${c.id} (${c.phase})</text>
+                <text x="${x-35}" y="312" fill="#94a3b8" font-size="9">${c.p_kw}kW ${c.type}</text>
+            `;
+        }).join('')}
+    `;
+}
+
+// Export Handlers
+function exportSVG() {
+    const svgData = document.getElementById("sld-svg").outerHTML;
+    const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Handasium_SLD_Export.svg";
+    link.click();
+}
+
+function exportDXF() {
+    // Generate ASCII DXF R12 standard output structure
+    let dxf = "0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+    // Add Main Busbar
+    dxf += "0\nLINE\n8\nBUSBAR\n10\n50.0\n20\n190.0\n11\n800.0\n21\n190.0\n";
+    circuits.forEach((c, i) => {
+        const x = 90 + i * 105;
+        dxf += `0\nLINE\n8\nFEEDERS\n10\n${x}\n20\n190.0\n11\n${x}\n21\n275.0\n`;
+        dxf += `0\nTEXT\n8\nLABELS\n10\n${x-15}\n20\n300.0\n40\n10.0\n1\n${c.id}-${c.phase}\n`;
+    });
+    dxf += "0\nENDSEC\n0\nEOF\n";
+
+    const blob = new Blob([dxf], { type: "application/dxf" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Handasium_SLD_Export.dxf";
+    link.click();
+}
+
+function exportCSV() {
+    let csv = "Item No,Description,Unit,Quantity,Material Rate,Labor Rate,Line Total\n";
+    boqData.forEach(item => {
+        const lineTotal = item.qty * (item.mat + item.lab);
+        csv += `"${item.id}","${item.desc}","${item.unit}",${item.qty},${item.mat},${item.lab},${lineTotal}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Handasium_BOQ_Export.csv";
+    link.click();
+}
+
+function exportXLSX() {
+    const data = boqData.map(item => ({
+        "Item No": item.id,
+        "Description": item.desc,
+        "Unit": item.unit,
+        "Quantity": item.qty,
+        "Material Rate": item.mat,
+        "Labor Rate": item.lab,
+        "Line Total": item.qty * (item.mat + item.lab)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "BOQ Schedule");
+    XLSX.writeFile(wb, "Handasium_NRM_BOQ_Export.xlsx");
+}
+</script>
+</body>
+</html>

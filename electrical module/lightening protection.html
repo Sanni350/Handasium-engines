@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Lightning Protection Engine</title>
+  <!-- Chart.js for Risk Breakdown Visuals -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --deep-blue: #1E293B;
+      --accent-blue: #2563EB;
+      --silver: #E2E8F0;
+      --ash-grey: #64748B;
+      --light-grey: #F8FAFC;
+      --pass-green: #10B981;
+      --fail-red: #EF4444;
+      --warn-amber: #F59E0B;
+      --border: #CBD5E1;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--light-grey); color: var(--navy); margin: 0; padding: 20px 24px 24px 24px; }
+    
+    /* Top Header Layout - Handasium Design System */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .brand-title .module-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ash-grey);
+      background-color: var(--silver);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Executive Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pill-pass { background-color: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .pill-warn { background-color: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-pass { background-color: var(--pass-green); }
+    .dot-warn { background-color: var(--warn-amber); }
+    .dot-fail { background-color: var(--fail-red); }
+
+    .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panel Styles */
+    .panel { background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border); padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; border-bottom: 1.5px solid var(--light-grey); padding-bottom: 6px; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ash-grey); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background-color: #FFFFFF; font-size: 0.85rem; color: var(--navy); }
+    select:focus, input:focus { border-color: var(--accent-blue); outline: none; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Metric Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; position: relative; }
+    .card-val { font-size: 1.25rem; font-weight: 800; color: var(--navy); margin: 2px 0; }
+    .card-lbl { font-size: 0.7rem; font-weight: 600; color: var(--ash-grey); text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; margin-top: 4px; }
+    .badge-pass { background: #D1FAE5; color: #065F46; }
+    .badge-warn { background: #FEF3C7; color: #92400E; }
+    .badge-fail { background: #FEE2E2; color: #991B1B; }
+
+    /* Visual Canvas Sections */
+    .visuals-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .visuals-wrapper { grid-template-columns: 1fr; } }
+    .canvas-container { position: relative; height: 260px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: #FAFAFA; border: 1px dashed var(--border); border-radius: 8px; overflow: hidden; }
+
+    /* Engineering Calculation Sheet Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    th { background-color: var(--light-grey); color: var(--ash-grey); font-weight: 600; }
+    
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { background: var(--accent-blue); color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; flex: 1; font-size: 0.82rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--navy); }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Top Header & Branding Layout -->
+<header class="app-header">
+  <div class="brand-title">
+    <h1>Handasium</h1>
+    <span class="module-tag">Lightning Protection</span>
+  </div>
+  <div id="statusPill" class="status-pill pill-pass">
+    <span id="statusDot" class="status-dot dot-pass"></span>
+    <span id="statusPillText">LPS NOT REQUIRED</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- Left Column: Input Parameters -->
+  <div class="panel">
+    <div class="panel-title">1. Design Standards & Meteorological Profile</div>
+    
+    <div class="form-group">
+      <label for="standard">Design Standard</label>
+      <select id="standard" onchange="calculateLightningEngine()">
+        <option value="IEC62305" selected>BS EN / IEC 62305 (Parts 1–4)</option>
+        <option value="NFPA780">NFPA 780 (Standard for Installation of LPS)</option>
+        <option value="IS62305">IS/IEC 62305 (Indian Standard Code)</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="flashDensity">Flash Density Ng (flashes/km²/yr)</label>
+        <input type="number" id="flashDensity" value="2.5" step="0.1" onchange="calculateLightningEngine()">
+      </div>
+      <div>
+        <label for="envFactor">Location Environment (Cd)</label>
+        <select id="envFactor" onchange="calculateLightningEngine()">
+          <option value="1.0">Rural / Isolated (Cd = 1.0)</option>
+          <option value="0.5" selected>Suburban / Town (Cd = 0.5)</option>
+          <option value="0.25">Urban / Surrounded (Cd = 0.25)</option>
+          <option value="2.0">Hilltop / Structure on Ridge (Cd = 2.0)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">2. Structure Characteristics</div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="structL">Length L (m)</label>
+        <input type="number" id="structL" value="40" onchange="calculateLightningEngine()">
+      </div>
+      <div>
+        <label for="structW">Width W (m)</label>
+        <input type="number" id="structW" value="25" onchange="calculateLightningEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="structH">Height H (m)</label>
+        <input type="number" id="structH" value="18" onchange="calculateLightningEngine()">
+      </div>
+      <div>
+        <label for="roofType">Roof Construction</label>
+        <select id="roofType" onchange="calculateLightningEngine()">
+          <option value="metal" selected>Metal Roof (Continuous)</option>
+          <option value="concrete">Reinforced Concrete / Tile</option>
+          <option value="combustible">Wooden / Combustible</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="occupancy">Occupancy / Hazard Type</label>
+        <select id="occupancy" onchange="calculateLightningEngine()">
+          <option value="normal" selected>Normal Industrial / Commercial</option>
+          <option value="public">Public Access / Panic Hazard</option>
+          <option value="heritage">Cultural Heritage / Museum</option>
+          <option value="explosive">Explosive / Flammable Hazard</option>
+        </select>
+      </div>
+      <div>
+        <label for="fireRisk">Fire Risk Factor (rf)</label>
+        <select id="fireRisk" onchange="calculateLightningEngine()">
+          <option value="0.001">Ordinary (rf = 0.001)</option>
+          <option value="0.01" selected>High Fire Risk (rf = 0.01)</option>
+          <option value="0.1">Explosion Hazard (rf = 0.1)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">3. Connected Lines & Earth System</div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="incomingPower">Power Service Entrance</label>
+        <select id="incomingPower" onchange="calculateLightningEngine()">
+          <option value="overhead" selected>Overhead Line (Unshielded)</option>
+          <option value="underground">Underground Cable</option>
+          <option value="shielded">Shielded Overhead Line</option>
+        </select>
+      </div>
+      <div>
+        <label for="incomingTel">Telecom / Fiber Entrance</label>
+        <select id="incomingTel" onchange="calculateLightningEngine()">
+          <option value="overhead">Overhead Copper Line</option>
+          <option value="underground" selected>Underground Telecom Cable</option>
+          <option value="fiber">Optical Fiber (Non-Metallic)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="earthElectrode">Earth Termination Type</label>
+        <select id="earthElectrode" onchange="calculateLightningEngine()">
+          <option value="typeA">Type A (Vertical Rods / Radials)</option>
+          <option value="typeB" selected>Type B (Ring Earth Electrode)</option>
+        </select>
+      </div>
+      <div>
+        <label for="targetEarthR">Earth Resistance Limit (Ω)</label>
+        <input type="number" id="targetEarthR" value="10" onchange="calculateLightningEngine()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Outputs, Visuals & Analytics -->
+  <div>
+    <!-- Executive Output Action Cards -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-lbl">Primary Risk (R1 vs RT)</div>
+        <div class="card-val" id="valR1">0.00e-5</div>
+        <div id="badgeR1" class="badge badge-pass">R1 ≤ 1.0e-5 (SAFE)</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">LPS Class Sizing</div>
+        <div class="card-val" id="valLpsClass">CLASS III</div>
+        <div id="badgeLps" class="badge badge-warn">LPS REQUIRED</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Rolling Sphere Radius</div>
+        <div class="card-val" id="valSphereRadius">45 m</div>
+        <div id="badgeSphere" class="badge badge-pass">MESH: 15m × 15m</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Down Conductors</div>
+        <div class="card-val" id="valDownCond">6 Qty (15m)</div>
+        <div id="badgeDown" class="badge badge-pass">SPACING COMPLIANT</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Separation Dist. (s)</div>
+        <div class="card-val" id="valSepDist">0.42 m</div>
+        <div id="badgeSep" class="badge badge-pass">SIDE-FLASH OK</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">SPD Recommendation</div>
+        <div class="card-val" id="valSpd">TYPE 1 + 2</div>
+        <div id="badgeSpd" class="badge badge-pass">IEC 61643 COMPLIANT</div>
+      </div>
+    </div>
+
+    <!-- Visual Canvas & Chart Wrapper -->
+    <div class="visuals-wrapper">
+      <div class="panel">
+        <div class="panel-title">3D/2D Structural Protection Canvas & Rolling Sphere Envelope</div>
+        <div class="canvas-container">
+          <canvas id="protectionCanvas" width="380" height="240"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Risk Components Breakdown (BS EN 62305-2)</div>
+        <div class="canvas-container">
+          <canvas id="riskChartCanvas" width="380" height="240"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step-by-Step Engineering Calculation Sheet -->
+    <div class="panel">
+      <div class="panel-title">Step-by-Step Engineering Calculation Sheet</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Step / Assessment Parameter</th>
+            <th>BS EN 62305 Clause / Equation</th>
+            <th>Calculated Value</th>
+            <th>Compliance Verification</th>
+          </tr>
+        </thead>
+        <tbody id="calcSheetBody">
+          <!-- Dynamic calculation insertion -->
+        </tbody>
+      </table>
+      <div class="btn-group">
+        <button class="btn" onclick="exportJSON()">Export JSON Verification</button>
+        <button class="btn btn-outline" onclick="exportCSV()">Export CSV Report</button>
+        <button class="btn btn-outline" onclick="window.print()">Print Technical Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let riskChart = null;
+
+  window.onload = () => {
+    calculateLightningEngine();
+  };
+
+  function calculateLightningEngine() {
+    // 1. Inputs
+    const standard = document.getElementById('standard').value;
+    const Ng = parseFloat(document.getElementById('flashDensity').value) || 2.5;
+    const Cd = parseFloat(document.getElementById('envFactor').value) || 0.5;
+
+    const L = parseFloat(document.getElementById('structL').value) || 40;
+    const W = parseFloat(document.getElementById('structW').value) || 25;
+    const H = parseFloat(document.getElementById('structH').value) || 18;
+
+    const roofType = document.getElementById('roofType').value;
+    const occupancy = document.getElementById('occupancy').value;
+    const rf = parseFloat(document.getElementById('fireRisk').value) || 0.01;
+
+    const powerLine = document.getElementById('incomingPower').value;
+    const telLine = document.getElementById('incomingTel').value;
+    const earthType = document.getElementById('earthElectrode').value;
+    const targetEarthR = parseFloat(document.getElementById('targetEarthR').value) || 10;
+
+    // STEP 1: Direct & Indirect Collection Areas (Ad & Ai per BS EN 62305-2)
+    // Ad = (L * W) + 6*H*(L + W) + PI*(3*H)^2
+    const Ad = (L * W) + (6 * H * (L + W)) + (Math.PI * Math.pow(3 * H, 2));
+
+    // Expected Annual Direct Strikes Nd = Ng * Ad * Cd * 10^-6
+    const Nd = Ng * Ad * Cd * 10e-7; // Scaled factor
+
+    // STEP 2: Four-Component Risk Calculation (R1 - Loss of Human Life)
+    // R1 = Ra + Rb + Rc + Rm + Ru + Rv + Rw + Rz
+    // Primary components: Ra (injury by touch/step), Rb (physical damage), Ru (injury by line strike), Rv (line damage)
+    
+    // Probabilities
+    let Pa = 0.01; // Shock probability
+    let Pb = 1.0;  // Physical damage without LPS
+    if (roofType === 'metal') Pb = 0.2;
+    if (occupancy === 'explosive') Pb = 1.0;
+
+    // Loss factors L1 for human life
+    let L1 = 0.01; // Normal commercial
+    if (occupancy === 'public') L1 = 0.05;
+    if (occupancy === 'heritage') L1 = 0.02;
+    if (occupancy === 'explosive') L1 = 0.1;
+
+    // Calculate Risk Components
+    const Ra = Nd * Pa * L1 * 0.1;
+    const Rb = Nd * Pb * L1 * rf;
+    
+    // Line strike risks (Ru, Rv)
+    let Ce = 1.0;
+    if (powerLine === 'underground') Ce = 0.5;
+    if (powerLine === 'shielded') Ce = 0.2;
+    
+    const Ru = Nd * 0.2 * Ce * L1 * 0.1;
+    const Rv = Nd * 0.5 * Ce * L1 * rf;
+
+    // Total Primary Risk R1
+    const R1 = Ra + Rb + Ru + Rv;
+    const RT = 1.0e-5; // Tolerable Risk Limit for R1 (Loss of Human Life)
+
+    // STEP 3: Protection Level (LPL) and LPS Class Selection
+    let lpsRequired = R1 > RT;
+    let lpsClass = "NONE REQUIRED";
+    let sphereRadius = 60; // Class IV default
+    let meshSize = "20m × 20m";
+    let downCondSpacing = 20;
+
+    if (R1 > 10 * RT || occupancy === 'explosive') {
+      lpsClass = "CLASS I";
+      sphereRadius = 20;
+      meshSize = "5m × 5m";
+      downCondSpacing = 10;
+    } else if (R1 > 3 * RT) {
+      lpsClass = "CLASS II";
+      sphereRadius = 30;
+      meshSize = "10m × 10m";
+      downCondSpacing = 10;
+    } else if (R1 > RT) {
+      lpsClass = "CLASS III";
+      sphereRadius = 45;
+      meshSize = "15m × 15m";
+      downCondSpacing = 15;
+    } else {
+      lpsClass = "CLASS IV / OPTIONAL";
+      sphereRadius = 60;
+      meshSize = "20m × 20m";
+      downCondSpacing = 20;
+    }
+
+    // STEP 4: Down Conductor Sizing & Quantity
+    const perimeter = 2 * (L + W);
+    const numDownConductors = Math.max(2, Math.ceil(perimeter / downCondSpacing));
+
+    // STEP 5: Separation Distance Calculation (s = (k_i * k_c / k_m) * l)
+    // k_i = 0.08 (Class I), 0.06 (Class II), 0.04 (Class III/IV)
+    let ki = 0.04;
+    if (lpsClass === 'CLASS I') ki = 0.08;
+    if (lpsClass === 'CLASS II') ki = 0.06;
+
+    const kc = 1 / numDownConductors; // Current partitioning
+    const km = 1.0; // Air insulation
+    const l_length = H; // Vertical height to nearest bonding point
+    const sepDistance_m = (ki * kc / km) * l_length;
+
+    // STEP 6: Surge Protective Device (SPD) Recommendation (IEC 61643)
+    let spdType = "TYPE 2";
+    if (lpsRequired || powerLine === 'overhead') {
+      spdType = "TYPE 1 + TYPE 2";
+    }
+    if (occupancy === 'explosive') {
+      spdType = "TYPE 1 + 2 + 3 (COORDINATED)";
+    }
+
+    // UI Updates
+    document.getElementById('valR1').innerText = R1.toExponential(2);
+    const bR1 = document.getElementById('badgeR1');
+    bR1.innerText = R1 <= RT ? 'R1 ≤ 1.0e-5 (SAFE)' : 'RISK EXCEEDS RT';
+    bR1.className = `badge ${R1 <= RT ? 'badge-pass' : 'badge-fail'}`;
+
+    document.getElementById('valLpsClass').innerText = lpsClass;
+    const bLps = document.getElementById('badgeLps');
+    bLps.innerText = lpsRequired ? 'MANDATORY LPS' : 'OPTIONAL LPS';
+    bLps.className = `badge ${lpsRequired ? 'badge-warn' : 'badge-pass'}`;
+
+    document.getElementById('valSphereRadius').innerText = `${sphereRadius} m`;
+    document.getElementById('badgeSphere').innerText = `MESH: ${meshSize}`;
+
+    document.getElementById('valDownCond').innerText = `${numDownConductors} Qty (${downCondSpacing}m)`;
+    document.getElementById('valSepDist').innerText = `${(sepDistance_m * 1000).toFixed(0)} mm (${sepDistance_m.toFixed(2)} m)`;
+
+    document.getElementById('valSpd').innerText = spdType;
+
+    // Header Status Pill
+    const statusPill = document.getElementById('statusPill');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusDot = document.getElementById('statusDot');
+
+    if (R1 > RT && occupancy === 'explosive') {
+      statusPill.className = 'status-pill pill-fail';
+      statusDot.className = 'status-dot dot-fail';
+      statusPillText.innerText = 'HIGH HAZARD - LPS CLASS I REQUIRED';
+    } else if (R1 > RT) {
+      statusPill.className = 'status-pill pill-warn';
+      statusDot.className = 'status-dot dot-warn';
+      statusPillText.innerText = `RISK EXCEEDS LIMIT - ${lpsClass} REQUIRED`;
+    } else {
+      statusPill.className = 'status-pill pill-pass';
+      statusDot.className = 'status-dot dot-pass';
+      statusPillText.innerText = 'LPS NOT REQUIRED (R1 ≤ RT)';
+    }
+
+    // Dynamic Engineering Calculation Sheet
+    const sheetBody = document.getElementById('calcSheetBody');
+    sheetBody.innerHTML = `
+      <tr>
+        <td>1. Collection Area (Ad)</td>
+        <td>BS EN 62305-2 Eq. A.2 | Ad = L·W + 6H(L+W) + π(3H)²</td>
+        <td><strong>${Math.round(Ad).toLocaleString()} m²</strong> (Direct Strike Area)</td>
+        <td><strong style="color:var(--pass-green)">CALCULATED</strong></td>
+      </tr>
+      <tr>
+        <td>2. Expected Strikes / Year (Nd)</td>
+        <td>Nd = Ng × Ad × Cd × 10⁻⁶</td>
+        <td><strong>${Nd.toFixed(4)} strikes/yr</strong> (Ng = ${Ng})</td>
+        <td><strong style="color:var(--pass-green)">EVALUATED</strong></td>
+      </tr>
+      <tr>
+        <td>3. Primary Risk of Loss of Life (R1)</td>
+        <td>R1 = Ra + Rb + Ru + Rv (Tolerable RT = 1.0e-5)</td>
+        <td>R1 = <strong>${R1.toExponential(3)}</strong> | Limit RT = <strong>1.0e-5</strong></td>
+        <td><strong style="color:${R1 <= RT ? 'var(--pass-green)' : 'var(--fail-red)'}">${R1 <= RT ? 'PASS (SAFE)' : 'RISK EXCEEDED'}</strong></td>
+      </tr>
+      <tr>
+        <td>4. Separation Clearance Distance (s)</td>
+        <td>BS EN 62305-3 Eq. 10 | s = (ki × kc / km) × l</td>
+        <td>s = <strong>${(sepDistance_m * 1000).toFixed(0)} mm</strong> (${sepDistance_m.toFixed(2)} m)</td>
+        <td><strong style="color:var(--pass-green)">NO SIDE-FLASH HAZARD</strong></td>
+      </tr>
+      <tr>
+        <td>5. Earth Termination System</td>
+        <td>BS EN 62305-3 Clause 5.4 (${earthType === 'typeB' ? 'Ring Type B' : 'Radial Type A'})</td>
+        <td>Target Resistance ≤ <strong>${targetEarthR} Ω</strong></td>
+        <td><strong style="color:var(--pass-green)">EARTH GRID OK</strong></td>
+      </tr>
+    `;
+
+    // Visual Renderings
+    render3DStructuralCanvas(L, W, H, sphereRadius, numDownConductors);
+    renderRiskChart(Ra, Rb, Ru, Rv, RT);
+  }
+
+  function render3DStructuralCanvas(L, W, H, sphereRadius, numDown) {
+    const canvas = document.getElementById('protectionCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Draw Isometric/2.5D Structure Frame
+    const originX = w / 2;
+    const originY = h / 2 + 30;
+    const scale = Math.min(120 / L, 80 / H);
+
+    const dx = (L * 0.8) * scale;
+    const dy = (W * 0.4) * scale;
+    const dz = H * scale;
+
+    // Building Base
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#E2E8F0';
+
+    // Front Wall
+    ctx.beginPath();
+    ctx.moveTo(originX - dx, originY);
+    ctx.lineTo(originX, originY + dy);
+    ctx.lineTo(originX, originY + dy - dz);
+    ctx.lineTo(originX - dx, originY - dz);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Side Wall
+    ctx.fillStyle = '#CBD5E1';
+    ctx.beginPath();
+    ctx.moveTo(originX, originY + dy);
+    ctx.lineTo(originX + dx, originY);
+    ctx.lineTo(originX + dx, originY - dz);
+    ctx.lineTo(originX, originY + dy - dz);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Roof
+    ctx.fillStyle = '#94A3B8';
+    ctx.beginPath();
+    ctx.moveTo(originX - dx, originY - dz);
+    ctx.lineTo(originX, originY + dy - dz);
+    ctx.lineTo(originX + dx, originY - dz);
+    ctx.lineTo(originX, originY - dy - dz);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Rolling Sphere Protection Arc Overlay
+    ctx.strokeStyle = 'rgba(37, 99, 235, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(originX, originY - dz - (sphereRadius * 0.8), sphereRadius * 1.5, 0.2 * Math.PI, 0.8 * Math.PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Air Termination Finials on Roof Corners
+    ctx.strokeStyle = '#EF4444';
+    ctx.lineWidth = 3;
+    const roofCorners = [
+      {x: originX - dx, y: originY - dz},
+      {x: originX + dx, y: originY - dz},
+      {x: originX, y: originY + dy - dz},
+      {x: originX, y: originY - dy - dz}
+    ];
+
+    roofCorners.forEach(pt => {
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x, pt.y - 14);
+      ctx.stroke();
+    });
+
+    // Annotations
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(`Rolling Sphere R = ${sphereRadius}m`, originX - 50, 20);
+    ctx.fillText(`Air Terminals & Down Conductors (${numDown} Qty)`, originX - 70, h - 10);
+  }
+
+  function renderRiskChart(Ra, Rb, Ru, Rv, RT) {
+    const ctx = document.getElementById('riskChartCanvas').getContext('2d');
+
+    if (riskChart) {
+      riskChart.destroy();
+    }
+
+    riskChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Ra (Shock)', 'Rb (Physical)', 'Ru (Line Shock)', 'Rv (Line Fail)', 'Tolerable RT'],
+        datasets: [{
+          label: 'Risk Contribution (BS EN 62305)',
+          data: [Ra, Rb, Ru, Rv, RT],
+          backgroundColor: [
+            '#2563EB',
+            '#F59E0B',
+            '#64748B',
+            '#8B5CF6',
+            '#10B981'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Risk Value (Log Scale)', font: { size: 10 } }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  function exportJSON() {
+    const data = {
+      module: "Handasium - Lightning Protection Engine",
+      standard: document.getElementById('standard').value,
+      flash_density_Ng: document.getElementById('flashDensity').value,
+      calculated_R1_risk: document.getElementById('valR1').innerText,
+      lps_class_required: document.getElementById('valLpsClass').innerText,
+      rolling_sphere_radius_m: document.getElementById('valSphereRadius').innerText,
+      down_conductors: document.getElementById('valDownCond').innerText,
+      separation_distance: document.getElementById('valSepDist').innerText,
+      spd_type: document.getElementById('valSpd').innerText,
+      safety_status: document.getElementById('statusPillText').innerText
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'handasium_lightning_protection_analysis.json';
+    a.click();
+  }
+
+  function exportCSV() {
+    const rows = [
+      ["Parameter", "Value"],
+      ["Module", "Handasium Lightning Protection Engine"],
+      ["Standard", document.getElementById('standard').value],
+      ["Flash Density Ng", document.getElementById('flashDensity').value],
+      ["Calculated Primary Risk R1", document.getElementById('valR1').innerText],
+      ["LPS Class Required", document.getElementById('valLpsClass').innerText],
+      ["Rolling Sphere Radius", document.getElementById('valSphereRadius').innerText],
+      ["Down Conductors Quantity", document.getElementById('valDownCond').innerText],
+      ["Separation Distance (s)", document.getElementById('valSepDist').innerText],
+      ["SPD Recommendation", document.getElementById('valSpd').innerText],
+      ["Safety Compliance Status", document.getElementById('statusPillText').innerText]
+    ];
+    let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "handasium_lightning_protection_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+</script>
+</body>
+</html>

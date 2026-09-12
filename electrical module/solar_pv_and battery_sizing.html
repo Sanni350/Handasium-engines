@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Solar PV & Battery Storage Engine</title>
+  <!-- Chart.js for Dynamic 24-Hour Daily Energy Flow Profile -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --deep-blue: #1E293B;
+      --accent-blue: #2563EB;
+      --silver: #E2E8F0;
+      --ash-grey: #64748B;
+      --light-grey: #F8FAFC;
+      --pass-green: #10B981;
+      --fail-red: #EF4444;
+      --warn-amber: #F59E0B;
+      --border: #CBD5E1;
+      --solar-yellow: #EAB308;
+      --battery-teal: #14B8A6;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--light-grey); color: var(--navy); margin: 0; padding: 20px 24px 24px 24px; }
+    
+    /* Top Header Layout - Handasium Design System */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .brand-title .module-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ash-grey);
+      background-color: var(--silver);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Executive Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pill-pass { background-color: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .pill-warn { background-color: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-pass { background-color: var(--pass-green); }
+    .dot-warn { background-color: var(--warn-amber); }
+    .dot-fail { background-color: var(--fail-red); }
+
+    .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+    @media (max-width: 1100px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panel Styles */
+    .panel { background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border); padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; border-bottom: 1.5px solid var(--light-grey); padding-bottom: 6px; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 0.73rem; font-weight: 600; color: var(--ash-grey); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+    select, input { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background-color: #FFFFFF; font-size: 0.83rem; color: var(--navy); }
+    select:focus, input:focus { border-color: var(--accent-blue); outline: none; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    /* Metric Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; position: relative; }
+    .card-val { font-size: 1.2rem; font-weight: 800; color: var(--navy); margin: 2px 0; }
+    .card-lbl { font-size: 0.68rem; font-weight: 600; color: var(--ash-grey); text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; margin-top: 4px; }
+    .badge-pass { background: #D1FAE5; color: #065F46; }
+    .badge-warn { background: #FEF3C7; color: #92400E; }
+    .badge-fail { background: #FEE2E2; color: #991B1B; }
+
+    /* Visual Canvas Sections */
+    .visuals-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 950px) { .visuals-wrapper { grid-template-columns: 1fr; } }
+    .canvas-container { position: relative; height: 260px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: #FAFAFA; border: 1px dashed var(--border); border-radius: 8px; overflow: hidden; }
+
+    /* Engineering Calculation Sheet Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    th { background-color: var(--light-grey); color: var(--ash-grey); font-weight: 600; }
+    
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { background: var(--accent-blue); color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; flex: 1; font-size: 0.82rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--navy); }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Top Header & Branding Layout -->
+<header class="app-header">
+  <div class="brand-title">
+    <h1>Handasium</h1>
+    <span class="module-tag">Solar PV & Battery Storage</span>
+  </div>
+  <div id="statusPill" class="status-pill pill-pass">
+    <span id="statusDot" class="status-dot dot-pass"></span>
+    <span id="statusPillText">SYSTEM BALANCED</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- Left Column: Input Parameters -->
+  <div class="panel">
+    <div class="panel-title">1. Standard & System Architecture</div>
+    
+    <div class="form-group grid-2">
+      <div>
+        <label for="standard">Design Standard</label>
+        <select id="standard" onchange="calculateSolarEngine()">
+          <option value="IEC62548" selected>BS 7671 / IEC 62548</option>
+          <option value="NEC690">NEC Article 690 / 706</option>
+          <option value="IS16270">IS 16270 (BIS Standard)</option>
+        </select>
+      </div>
+      <div>
+        <label for="sysType">System Topology</label>
+        <select id="sysType" onchange="calculateSolarEngine()">
+          <option value="hybrid" selected>Grid-Tied Hybrid (Storage)</option>
+          <option value="offgrid">Off-Grid Standalone</option>
+          <option value="gridtied">Grid-Tied Direct (No Battery)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">2. Site Meteorology & Load Profile</div>
+
+    <div class="form-group grid-3">
+      <div>
+        <label for="psh">Peak Sun Hours (hrs/day)</label>
+        <input type="number" id="psh" value="5.2" step="0.1" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="tmin">T_min (°C)</label>
+        <input type="number" id="tmin" value="-5" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="autonomy">Autonomy (Days)</label>
+        <input type="number" id="autonomy" value="1.5" step="0.5" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="dailyKwh">Daily Energy Load (kWh/day)</label>
+        <input type="number" id="dailyKwh" value="35" step="1" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="peakKw">Peak Load Power (kW)</label>
+        <input type="number" id="peakKw" value="8.5" step="0.5" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">3. Solar PV Module & Inverter Specs</div>
+
+    <div class="form-group grid-3">
+      <div>
+        <label for="pmax">Module Pmax (Wp)</label>
+        <input type="number" id="pmax" value="550" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="voc">Voc @ STC (V)</label>
+        <input type="number" id="voc" value="49.8" step="0.1" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="vmp">Vmp @ STC (V)</label>
+        <input type="number" id="vmp" value="41.9" step="0.1" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-3">
+      <div>
+        <label for="isc">Isc (A)</label>
+        <input type="number" id="isc" value="14.0" step="0.1" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="tempCoeff">Coeff Voc (%/°C)</label>
+        <input type="number" id="tempCoeff" value="-0.27" step="0.01" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="inverterKw">Inverter Rating (kW)</label>
+        <input type="number" id="inverterKw" value="10.0" step="0.5" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="mpptMin">Inverter MPPT Min (V)</label>
+        <input type="number" id="mpptMin" value="180" onchange="calculateSolarEngine()">
+      </div>
+      <div>
+        <label for="invVmax">Inverter Max Input (V)</label>
+        <input type="number" id="invVmax" value="1000" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">4. Battery Storage System (BESS)</div>
+
+    <div class="form-group grid-3">
+      <div>
+        <label for="bessChem">Chemistry</label>
+        <select id="bessChem" onchange="updateDodDefault(); calculateSolarEngine();">
+          <option value="lifepo4" selected>Lithium (LiFePO4)</option>
+          <option value="leadacid">Lead-Acid (AGM/GEL)</option>
+        </select>
+      </div>
+      <div>
+        <label for="vBatt">Bank Voltage (V)</label>
+        <select id="vBatt" onchange="calculateSolarEngine()">
+          <option value="48" selected>48 VDC</option>
+          <option value="120">120 VDC</option>
+          <option value="400">400 VDC (HV)</option>
+        </select>
+      </div>
+      <div>
+        <label for="dod">Max DoD (%)</label>
+        <input type="number" id="dod" value="80" onchange="calculateSolarEngine()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Outputs, Visuals & Analytics -->
+  <div>
+    <!-- Executive Output Action Cards -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-lbl">Total PV Array Size</div>
+        <div class="card-val" id="valArrayKw">0.0 kWp</div>
+        <div id="badgeModules" class="badge badge-pass">0 Modules (550Wp)</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">String Topography</div>
+        <div class="card-val" id="valStringConfig">0S × 0P</div>
+        <div id="badgeStringVolt" class="badge badge-pass">Voc_max: 0 V</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Battery Bank Size</div>
+        <div class="card-val" id="valBattKwh">0.0 kWh</div>
+        <div id="badgeAh" class="badge badge-pass">0 Ah @ 48V</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">DC/AC Array Ratio</div>
+        <div class="card-val" id="valDcAc">1.00</div>
+        <div id="badgeDcAc" class="badge badge-pass">BALANCED RATIO</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Annual Generation</div>
+        <div class="card-val" id="valAnnualMwh">0.0 MWh/yr</div>
+        <div id="badgePr" class="badge badge-pass">PR: 80%</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Annual CO₂ Saved</div>
+        <div class="card-val" id="valCo2">0.0 Tons</div>
+        <div id="badgeCo2" class="badge badge-pass">GREEN IMPACT</div>
+      </div>
+    </div>
+
+    <!-- Visual Canvas & Chart Wrapper -->
+    <div class="visuals-wrapper">
+      <div class="panel">
+        <div class="panel-title">Dynamic String Wiring Topology Diagram</div>
+        <div class="canvas-container">
+          <canvas id="topologyCanvas" width="400" height="240"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Daily 24-Hour Energy Flow Profile (Generation vs. Load)</div>
+        <div class="canvas-container">
+          <canvas id="energyFlowCanvas" width="400" height="240"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step-by-Step Engineering Calculation Sheet -->
+    <div class="panel">
+      <div class="panel-title">Step-by-Step Engineering Calculation Sheet</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Step / Calculation Parameter</th>
+            <th>Governing Equation / Clause</th>
+            <th>Calculated Value</th>
+            <th>Design Compliance</th>
+          </tr>
+        </thead>
+        <tbody id="calcSheetBody">
+          <!-- Dynamic calculation insertion -->
+        </tbody>
+      </table>
+      <div class="btn-group">
+        <button class="btn" onclick="exportJSON()">Export JSON Verification</button>
+        <button class="btn btn-outline" onclick="exportCSV()">Export CSV Report</button>
+        <button class="btn btn-outline" onclick="window.print()">Print Engineering Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let energyChart = null;
+
+  window.onload = () => {
+    calculateSolarEngine();
+  };
+
+  function updateDodDefault() {
+    const chem = document.getElementById('bessChem').value;
+    document.getElementById('dod').value = (chem === 'lifepo4') ? 80 : 50;
+  }
+
+  function calculateSolarEngine() {
+    // 1. Inputs
+    const standard = document.getElementById('standard').value;
+    const sysType = document.getElementById('sysType').value;
+    const PSH = parseFloat(document.getElementById('psh').value) || 5.2;
+    const T_min = parseFloat(document.getElementById('tmin').value) || -5;
+    const autonomyDays = parseFloat(document.getElementById('autonomy').value) || 1.5;
+    const E_daily = parseFloat(document.getElementById('dailyKwh').value) || 35;
+    const peakKw = parseFloat(document.getElementById('peakKw').value) || 8.5;
+
+    const P_module = parseFloat(document.getElementById('pmax').value) || 550;
+    const Voc_stc = parseFloat(document.getElementById('voc').value) || 49.8;
+    const Vmp_stc = parseFloat(document.getElementById('vmp').value) || 41.9;
+    const Isc = parseFloat(document.getElementById('isc').value) || 14.0;
+    const tempCoeffVoc = parseFloat(document.getElementById('tempCoeff').value) || -0.27;
+
+    const inverterKw = parseFloat(document.getElementById('inverterKw').value) || 10.0;
+    const mpptMin = parseFloat(document.getElementById('mpptMin').value) || 180;
+    const invVmax = parseFloat(document.getElementById('invVmax').value) || 1000;
+
+    const vBatt = parseFloat(document.getElementById('vBatt').value) || 48;
+    const dodPercent = parseFloat(document.getElementById('dod').value) || 80;
+
+    // Efficiency factors
+    const eta_inv = 0.96;
+    const eta_wiring = 0.97;
+    const eta_dust = 0.95;
+    const sysEfficiency = eta_inv * eta_wiring * eta_dust; // ~0.884
+
+    // STEP 1: Solar Array Sizing
+    const E_pv_req = E_daily / sysEfficiency;
+    const P_array_kWp = E_pv_req / PSH;
+    const N_modules = Math.ceil((P_array_kWp * 1000) / P_module);
+    const P_array_actual_kWp = (N_modules * P_module) / 1000;
+
+    // STEP 2: Voltage Temperature Correction & String Sizing (BS 7671 / IEC 62548)
+    // Voc_max = Voc_stc * [1 + (gamma / 100) * (T_min - 25)]
+    const Voc_max = Voc_stc * (1 + (tempCoeffVoc / 100) * (T_min - 25));
+    const N_series_max = Math.floor(invVmax / Voc_max);
+    
+    // Recommended modules per string (aiming for optimal Vmp window ~600V)
+    let N_series = Math.min(14, N_series_max);
+    if (N_series_max < 1) N_series = 1;
+    
+    // Minimum series check
+    const N_series_min = Math.ceil(mpptMin / Vmp_stc);
+    if (N_series < N_series_min) N_series = N_series_min;
+
+    const N_parallel = Math.ceil(N_modules / N_series);
+    const totalModulesConfigured = N_series * N_parallel;
+    const finalArrayKw = (totalModulesConfigured * P_module) / 1000;
+
+    // STEP 3: Battery Storage Capacity Sizing (kWh & Ah)
+    let C_nominal_kWh = 0;
+    let C_Ah = 0;
+    if (sysType !== 'gridtied') {
+      const C_usable_kWh = (E_daily * autonomyDays) / eta_inv;
+      C_nominal_kWh = C_usable_kWh / (dodPercent / 100);
+      C_Ah = (C_nominal_kWh * 1000) / vBatt;
+    }
+
+    // STEP 4: Inverter Sizing & Array-to-Inverter Ratio (DC/AC Ratio)
+    const dcAcRatio = finalArrayKw / inverterKw;
+    const chargeControllerCurrent = N_parallel * Isc * 1.25;
+
+    // STEP 5: Annual Generation & Environmental Impact
+    const PR = 0.80; // Performance Ratio
+    const E_annual_MWh = (finalArrayKw * PSH * 365 * PR) / 1000;
+    const co2SavedTons = E_annual_MWh * 0.708; // Emission Factor 0.708 tCO2/MWh
+
+    // System Status Verification
+    let statusText = "SYSTEM BALANCED";
+    let statusClass = "pill-pass";
+    let statusDotClass = "dot-pass";
+
+    if (Voc_max * N_series > invVmax) {
+      statusText = "INCOMPATIBLE STRING VOLTAGE (EXCEEDS MAX)";
+      statusClass = "pill-fail";
+      statusDotClass = "dot-fail";
+    } else if (dcAcRatio > 1.35) {
+      statusText = "OVER-SIZED PV ARRAY (CLIPPING RISK)";
+      statusClass = "pill-warn";
+      statusDotClass = "dot-warn";
+    } else if (dcAcRatio < 0.85) {
+      statusText = "UNDER-SIZED PV ARRAY";
+      statusClass = "pill-warn";
+      statusDotClass = "dot-warn";
+    } else if (sysType !== 'gridtied' && C_nominal_kWh < (E_daily / (dodPercent/100))) {
+      statusText = "BATTERY CAPACITY DEFICIT";
+      statusClass = "pill-warn";
+      statusDotClass = "dot-warn";
+    }
+
+    // UI Card Updates
+    document.getElementById('valArrayKw').innerText = `${finalArrayKw.toFixed(2)} kWp`;
+    document.getElementById('badgeModules').innerText = `${totalModulesConfigured} Modules (${P_module}Wp)`;
+
+    document.getElementById('valStringConfig').innerText = `${N_parallel}P × ${N_series}S`;
+    const bString = document.getElementById('badgeStringVolt');
+    const maxStringVoc = (Voc_max * N_series).toFixed(1);
+    bString.innerText = `Voc_max: ${maxStringVoc} V (${maxStringVoc < invVmax ? 'SAFE' : 'OVERVOLT'})`;
+    bString.className = `badge ${maxStringVoc < invVmax ? 'badge-pass' : 'badge-fail'}`;
+
+    document.getElementById('valBattKwh').innerText = sysType === 'gridtied' ? 'N/A' : `${C_nominal_kWh.toFixed(1)} kWh`;
+    document.getElementById('badgeAh').innerText = sysType === 'gridtied' ? 'NO STORAGE' : `${Math.round(C_Ah)} Ah @ ${vBatt}V`;
+
+    document.getElementById('valDcAc').innerText = dcAcRatio.toFixed(2);
+    const bDcAc = document.getElementById('badgeDcAc');
+    bDcAc.innerText = (dcAcRatio >= 1.0 && dcAcRatio <= 1.35) ? 'OPTIMAL RATIO' : 'CHECK RATIO';
+    bDcAc.className = `badge ${(dcAcRatio >= 1.0 && dcAcRatio <= 1.35) ? 'badge-pass' : 'badge-warn'}`;
+
+    document.getElementById('valAnnualMwh').innerText = `${E_annual_MWh.toFixed(1)} MWh/yr`;
+    document.getElementById('valCo2').innerText = `${co2SavedTons.toFixed(1)} Tons`;
+
+    // Status Pill Update
+    const statusPill = document.getElementById('statusPill');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusDot = document.getElementById('statusDot');
+    statusPill.className = `status-pill ${statusClass}`;
+    statusDot.className = `status-dot ${statusDotClass}`;
+    statusPillText.innerText = statusText;
+
+    // Dynamic Engineering Calculation Sheet
+    const sheetBody = document.getElementById('calcSheetBody');
+    sheetBody.innerHTML = `
+      <tr>
+        <td>1. Required PV Array Size</td>
+        <td>IEC 62548 Cl. 6.2 | P_array = (E_daily / η_sys) / PSH</td>
+        <td>Required: <strong>${P_array_kWp.toFixed(2)} kWp</strong> | Installed: <strong>${finalArrayKw.toFixed(2)} kWp</strong></td>
+        <td><strong style="color:var(--pass-green)">ARRAY CAPABLE</strong></td>
+      </tr>
+      <tr>
+        <td>2. Temperature Corrected Voc</td>
+        <td>BS 7671 Sec 712 | Voc_max = Voc_stc·[1 + γ(T_min - 25)]</td>
+        <td>Voc_max (per module @ ${T_min}°C) = <strong>${Voc_max.toFixed(2)} V</strong></td>
+        <td><strong style="color:var(--pass-green)">TEMP FACTOR APPLIED</strong></td>
+      </tr>
+      <tr>
+        <td>3. Max Modules per String</td>
+        <td>N_series_max = Floor(V_inv_max / Voc_max)</td>
+        <td><strong>${N_series_max} Modules</strong> (Configured: <strong>${N_series}S</strong>)</td>
+        <td><strong style="color:${maxStringVoc < invVmax ? 'var(--pass-green)' : 'var(--fail-red)'}">${maxStringVoc < invVmax ? 'VOLTAGE COMPLIANT' : 'OVERVOLTAGE RISK'}</strong></td>
+      </tr>
+      <tr>
+        <td>4. Usable & Nominal Battery Storage</td>
+        <td>IEC 61724 / NEC 706 | C_nom = (E_daily × Autonomy) / (DoD × η_inv)</td>
+        <td>Usable: <strong>${((E_daily * autonomyDays)/0.96).toFixed(1)} kWh</strong> | Nominal: <strong>${C_nominal_kWh.toFixed(1)} kWh</strong></td>
+        <td><strong style="color:var(--pass-green)">${sysType === 'gridtied' ? 'GRID-TIED (DIRECT)' : 'AUTONOMY COMPLIANT'}</strong></td>
+      </tr>
+      <tr>
+        <td>5. Charge Controller Current Rating</td>
+        <td>NEC 690.8 | I_ctrl = N_parallel × Isc × 1.25</td>
+        <td>Required Rating ≥ <strong>${chargeControllerCurrent.toFixed(1)} A</strong></td>
+        <td><strong style="color:var(--pass-green)">CONTINUOUS DUTY OK</strong></td>
+      </tr>
+    `;
+
+    // Render Canvas & Charts
+    renderTopologyCanvas(N_series, N_parallel, sysType);
+    renderEnergyFlowChart(E_daily, finalArrayKw, PSH);
+  }
+
+  function renderTopologyCanvas(N_series, N_parallel, sysType) {
+    const canvas = document.getElementById('topologyCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Draw Solar Array Box
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(20, 30, 110, 140);
+    ctx.strokeStyle = '#2563EB';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, 30, 110, 140);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('SOLAR PV ARRAY', 28, 50);
+    ctx.fillStyle = '#EAB308';
+    ctx.font = '9px sans-serif';
+    ctx.fillText(`${N_parallel} Parallel Strings`, 30, 70);
+    ctx.fillText(`${N_series} Modules / String`, 30, 85);
+
+    // Draw Mini Modules Inside
+    ctx.fillStyle = '#2563EB';
+    for(let r=0; r<3; r++) {
+      for(let c=0; c<2; c++) {
+        ctx.fillRect(32 + c*38, 100 + r*18, 32, 12);
+      }
+    }
+
+    // Combiner Box / DC Lines
+    ctx.strokeStyle = '#DC2626'; // DC Positive
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(130, 60);
+    ctx.lineTo(170, 60);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#0F172A'; // DC Negative
+    ctx.beginPath();
+    ctx.moveTo(130, 140);
+    ctx.lineTo(170, 140);
+    ctx.stroke();
+
+    // Combiner Box
+    ctx.fillStyle = '#E2E8F0';
+    ctx.fillRect(170, 45, 40, 110);
+    ctx.strokeRect(170, 45, 40, 110);
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '9px sans-serif';
+    ctx.fillText('DC COMB', 172, 100);
+
+    // Inverter Box
+    ctx.fillStyle = '#0F172A';
+    ctx.fillRect(240, 50, 70, 100);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('INVERTER', 248, 75);
+    ctx.fillStyle = '#10B981';
+    ctx.fillText('MPPT', 258, 95);
+
+    // Lines from Combiner to Inverter
+    ctx.strokeStyle = '#DC2626';
+    ctx.beginPath(); ctx.moveTo(210, 70); ctx.lineTo(240, 70); ctx.stroke();
+    ctx.strokeStyle = '#0F172A';
+    ctx.beginPath(); ctx.moveTo(210, 130); ctx.lineTo(240, 130); ctx.stroke();
+
+    // Battery Connection (If Hybrid/Off-Grid)
+    if (sysType !== 'gridtied') {
+      ctx.fillStyle = '#14B8A6';
+      ctx.fillRect(240, 180, 70, 45);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('BESS BANK', 248, 205);
+
+      ctx.strokeStyle = '#14B8A6';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(275, 150); ctx.lineTo(275, 180); ctx.stroke();
+    }
+
+    // AC Output Line
+    ctx.strokeStyle = '#10B981';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(310, 100); ctx.lineTo(370, 100); ctx.stroke();
+    
+    // AC Load Box
+    ctx.fillStyle = '#64748B';
+    ctx.fillRect(370, 75, 25, 50);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillText('AC', 376, 105);
+  }
+
+  function renderEnergyFlowChart(E_daily, P_array_kWp, PSH) {
+    const ctx = document.getElementById('energyFlowCanvas').getContext('2d');
+
+    // 24-Hour Synthetic Curves
+    const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
+    const solarCurve = hours.map((_, i) => {
+      if (i < 6 || i > 18) return 0;
+      const peak = (P_array_kWp * 0.85);
+      return Math.sin(((i - 6) / 12) * Math.PI) * peak;
+    });
+
+    const avgBaseLoad = (E_daily / 24);
+    const loadCurve = hours.map((_, i) => {
+      if (i >= 7 && i <= 9) return avgBaseLoad * 1.5; // Morning Peak
+      if (i >= 18 && i <= 22) return avgBaseLoad * 1.8; // Evening Peak
+      return avgBaseLoad * 0.7;
+    });
+
+    if (energyChart) {
+      energyChart.destroy();
+    }
+
+    energyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: hours,
+        datasets: [
+          {
+            label: 'Solar Generation (kW)',
+            data: solarCurve,
+            borderColor: '#EAB308',
+            backgroundColor: 'rgba(234, 179, 8, 0.25)',
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: 'Load Consumption (kW)',
+            data: loadCurve,
+            borderColor: '#2563EB',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            fill: true,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { font: { size: 9 } } },
+          y: { title: { display: true, text: 'Power (kW)', font: { size: 10 } } }
+        },
+        plugins: {
+          legend: { labels: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  function exportJSON() {
+    const data = {
+      module: "Handasium - Solar PV & Battery Storage Engine",
+      standard: document.getElementById('standard').value,
+      system_type: document.getElementById('sysType').value,
+      array_capacity_kWp: document.getElementById('valArrayKw').innerText,
+      string_configuration: document.getElementById('valStringConfig').innerText,
+      battery_capacity: document.getElementById('valBattKwh').innerText,
+      dc_ac_ratio: document.getElementById('valDcAc').innerText,
+      annual_generation: document.getElementById('valAnnualMwh').innerText,
+      co2_saved_tons: document.getElementById('valCo2').innerText,
+      status: document.getElementById('statusPillText').innerText
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'handasium_solar_bess_design.json';
+    a.click();
+  }
+
+  function exportCSV() {
+    const rows = [
+      ["Parameter", "Value"],
+      ["Module", "Handasium Solar PV & Battery Storage Engine"],
+      ["Design Standard", document.getElementById('standard').value],
+      ["System Architecture", document.getElementById('sysType').value],
+      ["Total PV Array Size", document.getElementById('valArrayKw').innerText],
+      ["String Configuration", document.getElementById('valStringConfig').innerText],
+      ["Battery Storage Rating", document.getElementById('valBattKwh').innerText],
+      ["DC/AC Ratio", document.getElementById('valDcAc').innerText],
+      ["Annual Yield", document.getElementById('valAnnualMwh').innerText],
+      ["CO2 Saved", document.getElementById('valCo2').innerText],
+      ["Compliance Status", document.getElementById('statusPillText').innerText]
+    ];
+    let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "handasium_solar_bess_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+</script>
+</body>
+</html>

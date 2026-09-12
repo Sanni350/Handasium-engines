@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handasium - Earthing & Grounding Engine</title>
+  <!-- Chart.js for Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --deep-blue: #1E293B;
+      --accent-blue: #2563EB;
+      --silver: #E2E8F0;
+      --ash-grey: #64748B;
+      --light-grey: #F8FAFC;
+      --pass-green: #10B981;
+      --fail-red: #EF4444;
+      --warn-amber: #F59E0B;
+      --border: #CBD5E1;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--light-grey); color: var(--navy); margin: 0; padding: 20px 24px 24px 24px; }
+    
+    /* Top Header Layout - Handasium Design System */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+    .brand-title .module-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ash-grey);
+      background-color: var(--silver);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Executive Status Pill */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pill-pass { background-color: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .pill-warn { background-color: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill-fail { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-pass { background-color: var(--pass-green); }
+    .dot-warn { background-color: var(--warn-amber); }
+    .dot-fail { background-color: var(--fail-red); }
+
+    .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panel Styles */
+    .panel { background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border); padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; border-bottom: 1.5px solid var(--light-grey); padding-bottom: 6px; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ash-grey); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input { width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border); background-color: #FFFFFF; font-size: 0.85rem; color: var(--navy); }
+    select:focus, input:focus { border-color: var(--accent-blue); outline: none; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Metric Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; position: relative; }
+    .card-val { font-size: 1.3rem; font-weight: 800; color: var(--navy); margin: 2px 0; }
+    .card-lbl { font-size: 0.7rem; font-weight: 600; color: var(--ash-grey); text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; margin-top: 4px; }
+    .badge-pass { background: #D1FAE5; color: #065F46; }
+    .badge-warn { background: #FEF3C7; color: #92400E; }
+    .badge-fail { background: #FEE2E2; color: #991B1B; }
+
+    /* Visual Canvas Sections */
+    .visuals-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .visuals-wrapper { grid-template-columns: 1fr; } }
+    .canvas-container { position: relative; height: 260px; width: 100%; display: flex; justify-content: center; align-items: center; background-color: #FAFAFA; border: 1px dashed var(--border); border-radius: 8px; overflow: hidden; }
+
+    /* Engineering Calculation Sheet Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    th { background-color: var(--light-grey); color: var(--ash-grey); font-weight: 600; }
+    
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { background: var(--accent-blue); color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; flex: 1; font-size: 0.82rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--navy); }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Header Section -->
+<header class="app-header">
+  <div class="brand-title">
+    <h1>Handasium</h1>
+    <span class="module-tag">Earthing & Grounding</span>
+  </div>
+  <div id="statusPill" class="status-pill pill-pass">
+    <span id="statusDot" class="status-dot dot-pass"></span>
+    <span id="statusPillText">TOUCH & STEP SAFE</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- Left Column: Input Parameters -->
+  <div class="panel">
+    <div class="panel-title">1. System & Design Standards</div>
+    
+    <div class="form-group">
+      <label for="standard">Design Standard</label>
+      <select id="standard" onchange="calculateEarthingEngine()">
+        <option value="IEEE80">IEEE Std 80-2013 (Substation Grid)</option>
+        <option value="BS7430">BS 7430 / IEC 60364-5-54</option>
+        <option value="IS3043">IS 3043 (Indian Standard Code of Practice)</option>
+        <option value="NEC250">NEC Article 250 (NFPA 70)</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="faultCurrent">Fault Current I_f (kA)</label>
+        <input type="number" id="faultCurrent" value="10" step="0.5" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="faultDuration">Duration t_f (s)</label>
+        <input type="number" id="faultDuration" value="0.5" step="0.1" onchange="calculateEarthingEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="bodyWeight">Body Mass (IEEE 80)</label>
+        <select id="bodyWeight" onchange="calculateEarthingEngine()">
+          <option value="50">50 kg</option>
+          <option value="70" selected>70 kg</option>
+        </select>
+      </div>
+      <div>
+        <label for="targetResistance">Target R_e Limit (Ω)</label>
+        <input type="number" id="targetResistance" value="1.0" step="0.1" onchange="calculateEarthingEngine()">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">2. Soil & Surface Parameters</div>
+    
+    <div class="form-group">
+      <label for="soilPreset">Soil Type Preset</label>
+      <select id="soilPreset" onchange="applySoilPreset()">
+        <option value="50">Moist Loam / Clay (50 Ω·m)</option>
+        <option value="20">Wet Organic Soil / Silt (20 Ω·m)</option>
+        <option value="500">Sand & Gravel (500 Ω·m)</option>
+        <option value="2000">Rocky Ground / Granite (2000 Ω·m)</option>
+        <option value="CUSTOM">Custom Resistivity</option>
+      </select>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="rhoSoil">Soil Resistivity ρ (Ω·m)</label>
+        <input type="number" id="rhoSoil" value="50" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="surfaceType">Surface Material</label>
+        <select id="surfaceType" onchange="calculateEarthingEngine()">
+          <option value="gravel" selected>Crushed Rock / Gravel (3000 Ω·m)</option>
+          <option value="asphalt">Asphalt Cover (10000 Ω·m)</option>
+          <option value="bare">Bare Soil (No Surface Layer)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="hsThickness">Layer Thickness h_s (m)</label>
+        <input type="number" id="hsThickness" value="0.10" step="0.01" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="conductorMat">Conductor Material</label>
+        <select id="conductorMat" onchange="calculateEarthingEngine()">
+          <option value="copper">Commercial Copper (k = 226)</option>
+          <option value="copper_bonded">Copper-Bonded Steel (k = 166)</option>
+          <option value="galv_steel">Galvanized Steel (k = 80)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:14px;">3. Grid & Rod Geometry Inputs</div>
+    
+    <div class="form-group grid-2">
+      <div>
+        <label for="gridLx">Grid Length L_x (m)</label>
+        <input type="number" id="gridLx" value="30" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="gridLy">Grid Width L_y (m)</label>
+        <input type="number" id="gridLy" value="20" onchange="calculateEarthingEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="burialDepth">Grid Burial Depth h (m)</label>
+        <input type="number" id="burialDepth" value="0.5" step="0.1" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="meshSpacing">Mesh Spacing D (m)</label>
+        <input type="number" id="meshSpacing" value="5.0" step="0.5" onchange="calculateEarthingEngine()">
+      </div>
+    </div>
+
+    <div class="form-group grid-2">
+      <div>
+        <label for="rodLength">Rod Length L_r (m)</label>
+        <input type="number" id="rodLength" value="3.0" step="0.5" onchange="calculateEarthingEngine()">
+      </div>
+      <div>
+        <label for="numRods">Number of Rods N_r</label>
+        <input type="number" id="numRods" value="8" onchange="calculateEarthingEngine()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Outputs, Visuals & Analytics -->
+  <div>
+    <!-- Output Action Cards -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-lbl">System Resistance (R_e)</div>
+        <div class="card-val" id="valRe">0.00 Ω</div>
+        <div id="badgeRe" class="badge badge-pass">PASS (&lt; 1.0 Ω)</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Ground Potential Rise</div>
+        <div class="card-val" id="valGPR">0 V</div>
+        <div id="badgeGpr" class="badge badge-warn">GPR EVALUATED</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Mesh Voltage (E_m vs E_touch)</div>
+        <div class="card-val" id="valTouch">0 V / 0 V</div>
+        <div id="badgeTouch" class="badge badge-pass">TOUCH SAFE</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Step Voltage (E_s vs E_step)</div>
+        <div class="card-val" id="valStep">0 V / 0 V</div>
+        <div id="badgeStep" class="badge badge-pass">STEP SAFE</div>
+      </div>
+    </div>
+
+    <!-- Visual Canvas Wrapper -->
+    <div class="visuals-wrapper">
+      <div class="panel">
+        <div class="panel-title">2D Grounding Grid & Rod Layout</div>
+        <div class="canvas-container">
+          <canvas id="gridCanvas" width="380" height="240"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Voltage Gradient & Hazard Contour (E_m Peak)</div>
+        <div class="canvas-container">
+          <canvas id="voltageCanvas" width="380" height="240"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step-by-Step Engineering Calculation Sheet -->
+    <div class="panel">
+      <div class="panel-title">Step-by-Step Engineering Calculation Sheet</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Step / Calculation Parameter</th>
+            <th>Equation / Standard Clause</th>
+            <th>Calculated Value</th>
+            <th>Verification Status</th>
+          </tr>
+        </thead>
+        <tbody id="calcSheetBody">
+          <!-- Dynamic calculations insertion -->
+        </tbody>
+      </table>
+      <div class="btn-group">
+        <button class="btn" onclick="exportJSON()">Export JSON Verification</button>
+        <button class="btn btn-outline" onclick="exportCSV()">Export CSV Report</button>
+        <button class="btn btn-outline" onclick="window.print()">Print Technical Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  window.onload = () => {
+    calculateEarthingEngine();
+  };
+
+  function applySoilPreset() {
+    const val = document.getElementById('soilPreset').value;
+    if (val !== 'CUSTOM') {
+      document.getElementById('rhoSoil').value = val;
+    }
+    calculateEarthingEngine();
+  }
+
+  function calculateEarthingEngine() {
+    // 1. Inputs
+    const standard = document.getElementById('standard').value;
+    const I_f_kA = parseFloat(document.getElementById('faultCurrent').value) || 10;
+    const I_f = I_f_kA * 1000; // Fault current in Amperes
+    const t_f = parseFloat(document.getElementById('faultDuration').value) || 0.5;
+    const bodyWeight = parseFloat(document.getElementById('bodyWeight').value) || 70;
+    const targetR = parseFloat(document.getElementById('targetResistance').value) || 1.0;
+
+    const rho = parseFloat(document.getElementById('rhoSoil').value) || 50;
+    const surfaceType = document.getElementById('surfaceType').value;
+    const h_s = parseFloat(document.getElementById('hsThickness').value) || 0.10;
+    const conductorMat = document.getElementById('conductorMat').value;
+
+    const L_x = parseFloat(document.getElementById('gridLx').value) || 30;
+    const L_y = parseFloat(document.getElementById('gridLy').value) || 20;
+    const h = parseFloat(document.getElementById('burialDepth').value) || 0.5;
+    const D = parseFloat(document.getElementById('meshSpacing').value) || 5.0;
+    const L_r = parseFloat(document.getElementById('rodLength').value) || 3.0;
+    const N_r = parseFloat(document.getElementById('numRods').value) || 8;
+    const d_r = 0.016; // Standard 16mm rod diameter
+
+    // Grid Dimensions & Lengths
+    const Area = L_x * L_y;
+    const n_x = Math.floor(L_x / D) + 1;
+    const n_y = Math.floor(L_y / D) + 1;
+    const L_c = (n_x * L_y) + (n_y * L_x); // Total grid conductor length
+    const L_R = N_r * L_r; // Total vertical rod length
+    const L_total = L_c + L_R; // Combined length
+
+    // STEP 1: Earth System Resistance R_e (Swarz / Laurent Equation per IEEE Std 80)
+    // R_grid = ρ * [ 1/L_total + 1/√(20A) * (1 + 1/(1 + h√(20/A))) ]
+    const term1 = 1 / L_total;
+    const term2 = (1 / Math.sqrt(20 * Area)) * (1 + (1 / (1 + h * Math.sqrt(20 / Area))));
+    const R_e = rho * (term1 + term2);
+
+    // STEP 2: Ground Potential Rise (GPR)
+    const GPR = I_f * R_e;
+
+    // STEP 3: Surface Layer & Tolerable Safety Limits (IEEE 80 Equations)
+    let rho_s = rho;
+    if (surfaceType === 'gravel') rho_s = 3000;
+    else if (surfaceType === 'asphalt') rho_s = 10000;
+
+    // Reflection factor K_k & Reduction factor C_s
+    let C_s = 1.0;
+    if (surfaceType !== 'bare') {
+      const K_k = (rho - rho_s) / (rho + rho_s);
+      C_s = 1 - (0.09 * (1 - (rho / rho_s))) / (2 * h_s + 0.09);
+    }
+
+    // Tolerable Touch & Step Voltage Constants based on body weight
+    const k_body = bodyWeight === 50 ? 0.116 : 0.157;
+    const E_touch_tol = (1000 + 1.5 * C_s * rho_s) * (k_body / Math.sqrt(t_f));
+    const E_step_tol = (1000 + 6.0 * C_s * rho_s) * (k_body / Math.sqrt(t_f));
+
+    // STEP 4: Mesh (E_m) and Step (E_s) Voltage Calculation (IEEE Std 80 Mesh Method)
+    const d_cond = 0.01; // Conductor diameter (10mm)
+    const K_h = Math.sqrt(1 + (h / 1.0)); // Depth factor
+    
+    // Geometry factor n
+    const n_a = Math.sqrt(n_x * n_y);
+    const n = n_a; 
+    const K_ii = 1.0;
+    const K_i = 0.656 + 0.172 * n;
+
+    // Mesh Factor K_m
+    const K_m = (1 / (2 * Math.PI)) * (
+      Math.log((D * D) / (16 * h * d_cond) + Math.pow(D + 2 * h, 2) / (8 * D * d_cond) - h / (4 * d_cond)) +
+      (K_ii / K_h) * Math.log(8 / (Math.PI * (2 * n - 1)))
+    );
+
+    // Step Factor K_s
+    const K_s = (1 / Math.PI) * ( (1 / (2 * h)) + (1 / (D + h)) + (1 / D) * (1 - Math.pow(0.5, n - 2)) );
+
+    // Calculated Mesh Voltage E_m and Step Voltage E_s
+    const E_m = (rho * I_f * K_m * K_i) / (L_c + 1.15 * L_R);
+    const E_s = (rho * I_f * K_s * K_i) / (L_c + 1.15 * L_R);
+
+    // STEP 5: Earthing Conductor Sizing (BS 7671 / IEC 60364-5-54 / IEEE 80)
+    let k_mat = 226; // Copper
+    if (conductorMat === 'copper_bonded') k_mat = 166;
+    else if (conductorMat === 'galv_steel') k_mat = 80;
+
+    const S_min = (I_f * Math.sqrt(t_f)) / k_mat; // Area in mm²
+
+    // Safety Verification Flags
+    const isRePass = R_e <= targetR;
+    const isTouchPass = E_m <= E_touch_tol;
+    const isStepPass = E_s <= E_step_tol;
+    const isOverallSafe = isRePass && isTouchPass && isStepPass;
+
+    // UI Updates
+    document.getElementById('valRe').innerText = `${R_e.toFixed(2)} Ω`;
+    const bRe = document.getElementById('badgeRe');
+    bRe.innerText = isRePass ? `PASS (< ${targetR.toFixed(1)} Ω)` : `HIGH RESISTANCE (> ${targetR.toFixed(1)} Ω)`;
+    bRe.className = `badge ${isRePass ? 'badge-pass' : 'badge-fail'}`;
+
+    document.getElementById('valGPR').innerText = `${Math.round(GPR)} V`;
+    document.getElementById('badgeGpr').innerText = GPR > 5000 ? 'HIGH VOLTAGE GRID' : 'GPR EVALUATED';
+
+    document.getElementById('valTouch').innerText = `${Math.round(E_m)}V / ${Math.round(E_touch_tol)}V`;
+    const bTouch = document.getElementById('badgeTouch');
+    bTouch.innerText = isTouchPass ? 'TOUCH SAFE' : 'TOUCH HAZARD';
+    bTouch.className = `badge ${isTouchPass ? 'badge-pass' : 'badge-fail'}`;
+
+    document.getElementById('valStep').innerText = `${Math.round(E_s)}V / ${Math.round(E_step_tol)}V`;
+    const bStep = document.getElementById('badgeStep');
+    bStep.innerText = isStepPass ? 'STEP SAFE' : 'STEP HAZARD';
+    bStep.className = `badge ${isStepPass ? 'badge-pass' : 'badge-fail'}`;
+
+    // Header Status Pill
+    const statusPill = document.getElementById('statusPill');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusDot = document.getElementById('statusDot');
+
+    if (!isTouchPass || !isStepPass) {
+      statusPill.className = 'status-pill pill-fail';
+      statusDot.className = 'status-dot dot-fail';
+      statusPillText.innerText = 'VOLTAGE HAZARD DETECTED';
+    } else if (!isRePass) {
+      statusPill.className = 'status-pill pill-warn';
+      statusDot.className = 'status-dot dot-warn';
+      statusPillText.innerText = 'EARTH RESISTANCE HIGH';
+    } else {
+      statusPill.className = 'status-pill pill-pass';
+      statusDot.className = 'status-dot dot-pass';
+      statusPillText.innerText = 'TOUCH & STEP SAFE';
+    }
+
+    // Dynamic Calculation Table
+    const sheetBody = document.getElementById('calcSheetBody');
+    sheetBody.innerHTML = `
+      <tr>
+        <td>1. Total System Resistance (R_e)</td>
+        <td>Swarz Formula / IEEE Std 80 Eq. 52</td>
+        <td><strong>${R_e.toFixed(3)} Ω</strong> (Target: ${targetR} Ω)</td>
+        <td><strong style="color:${isRePass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isRePass ? 'COMPLIANT' : 'EXCEEDED'}</strong></td>
+      </tr>
+      <tr>
+        <td>2. Ground Potential Rise (GPR)</td>
+        <td>GPR = I_fault × R_e</td>
+        <td><strong>${(GPR / 1000).toFixed(2)} kV</strong> (${Math.round(GPR)} V)</td>
+        <td><strong style="color:var(--pass-green)">EVALUATED</strong></td>
+      </tr>
+      <tr>
+        <td>3. Tolerable Touch Voltage (E_touch)</td>
+        <td>IEEE 80 Eq. 32 (C_s = ${C_s.toFixed(2)}, ${bodyWeight}kg)</td>
+        <td>Limit: <strong>${Math.round(E_touch_tol)} V</strong> | Actual: <strong>${Math.round(E_m)} V</strong></td>
+        <td><strong style="color:${isTouchPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isTouchPass ? 'TOUCH SAFE' : 'HAZARD'}</strong></td>
+      </tr>
+      <tr>
+        <td>4. Tolerable Step Voltage (E_step)</td>
+        <td>IEEE 80 Eq. 29 (C_s = ${C_s.toFixed(2)}, ${bodyWeight}kg)</td>
+        <td>Limit: <strong>${Math.round(E_step_tol)} V</strong> | Actual: <strong>${Math.round(E_s)} V</strong></td>
+        <td><strong style="color:${isStepPass ? 'var(--pass-green)' : 'var(--fail-red)'}">${isStepPass ? 'STEP SAFE' : 'HAZARD'}</strong></td>
+      </tr>
+      <tr>
+        <td>5. Conductor Cross-Section Sizing</td>
+        <td>BS 7671 / IEC 60364-5-54 S = (I√t)/k</td>
+        <td>Minimum Conductor: <strong>${S_min.toFixed(1)} mm²</strong> (k=${k_mat})</td>
+        <td><strong style="color:var(--pass-green)">SIZING OK</strong></td>
+      </tr>
+    `;
+
+    // Visual Renderings
+    render2DGrid(L_x, L_y, D, N_r);
+    renderVoltageGradient(E_m, E_touch_tol, isTouchPass);
+  }
+
+  function render2DGrid(Lx, Ly, D, Nr) {
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const margin = 30;
+    const scaleX = (canvas.width - margin * 2) / Lx;
+    const scaleY = (canvas.height - margin * 2) / Ly;
+    const scale = Math.min(scaleX, scaleY);
+
+    const startX = (canvas.width - Lx * scale) / 2;
+    const startY = (canvas.height - Ly * scale) / 2;
+
+    // Draw Outer Boundary
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(startX, startY, Lx * scale, Ly * scale);
+
+    // Draw Mesh Conductors
+    ctx.strokeStyle = '#2563EB';
+    ctx.lineWidth = 1;
+
+    for (let x = D; x < Lx; x += D) {
+      const cx = startX + x * scale;
+      ctx.beginPath();
+      ctx.moveTo(cx, startY);
+      ctx.lineTo(cx, startY + Ly * scale);
+      ctx.stroke();
+    }
+
+    for (let y = D; y < Ly; y += D) {
+      const cy = startY + y * scale;
+      ctx.beginPath();
+      ctx.moveTo(startX, cy);
+      ctx.lineTo(startX + Lx * scale, cy);
+      ctx.stroke();
+    }
+
+    // Draw Vertical Driven Rods as Red Markers
+    ctx.fillStyle = '#EF4444';
+    const rodPositions = [
+      {x: 0, y: 0}, {x: Lx, y: 0}, {x: 0, y: Ly}, {x: Lx, y: Ly},
+      {x: Lx/2, y: 0}, {x: Lx/2, y: Ly}, {x: 0, y: Ly/2}, {x: Lx, y: Ly/2}
+    ];
+
+    for (let i = 0; i < Math.min(Nr, rodPositions.length); i++) {
+      const rx = startX + rodPositions[i].x * scale;
+      const ry = startY + rodPositions[i].y * scale;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Dimension Annotations
+    ctx.fillStyle = '#64748B';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(`${Lx} m`, startX + (Lx * scale) / 2 - 10, startY - 8);
+    ctx.fillText(`${Ly} m`, startX - 24, startY + (Ly * scale) / 2);
+  }
+
+  function renderVoltageGradient(Em, EtouchTol, isSafe) {
+    const canvas = document.getElementById('voltageCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Draw Gradient Heatmap Background
+    const gradient = ctx.createRadialGradient(w/2, h/2, 10, w/2, h/2, w/2.2);
+    if (isSafe) {
+      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
+      gradient.addColorStop(0.4, 'rgba(245, 158, 11, 0.5)');
+      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.2)');
+    } else {
+      gradient.addColorStop(0, 'rgba(239, 68, 68, 1)');
+      gradient.addColorStop(0.6, 'rgba(239, 68, 68, 0.6)');
+      gradient.addColorStop(1, 'rgba(245, 158, 11, 0.3)');
+    }
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    // Overlay Contour Lines
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(w/2, h/2, 40, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(w/2, h/2, 80, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(`Peak Mesh Volts E_m: ${Math.round(Em)} V`, 15, 20);
+    ctx.fillText(`Tolerable Limit E_touch: ${Math.round(EtouchTol)} V`, 15, 36);
+  }
+
+  function exportJSON() {
+    const data = {
+      module: "Handasium - Earthing & Grounding Engine",
+      standard: document.getElementById('standard').value,
+      fault_current_kA: document.getElementById('faultCurrent').value,
+      soil_resistivity_ohm_m: document.getElementById('rhoSoil').value,
+      system_resistance_ohm: document.getElementById('valRe').innerText,
+      ground_potential_rise_V: document.getElementById('valGPR').innerText,
+      mesh_touch_voltage: document.getElementById('valTouch').innerText,
+      step_voltage: document.getElementById('valStep').innerText,
+      safety_status: document.getElementById('statusPillText').innerText
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'handasium_earthing_grounding_analysis.json';
+    a.click();
+  }
+
+  function exportCSV() {
+    const rows = [
+      ["Parameter", "Value"],
+      ["Module", "Handasium Earthing & Grounding Engine"],
+      ["Standard", document.getElementById('standard').value],
+      ["Fault Current (kA)", document.getElementById('faultCurrent').value],
+      ["Soil Resistivity (Ohm-m)", document.getElementById('rhoSoil').value],
+      ["System Resistance Re (Ohm)", document.getElementById('valRe').innerText],
+      ["Ground Potential Rise GPR (V)", document.getElementById('valGPR').innerText],
+      ["Mesh Touch Voltage", document.getElementById('valTouch').innerText],
+      ["Step Voltage", document.getElementById('valStep').innerText],
+      ["Safety Status", document.getElementById('statusPillText').innerText]
+    ];
+    let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "handasium_earthing_grounding_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+</script>
+</body>
+</html>
