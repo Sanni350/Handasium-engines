@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handasium — RCC Column Designer (BS 8110)</title>
+<style>
+  :root{
+    --paper:#EEF0F2; --ink:#1B2430; --ink-soft:#4B5563; --line:#DADEE3; --panel:#FFFFFF;
+    --blue:#1E4E8C; --blue-deep:#12315C;
+    --pass:#1E7A46; --pass-bg:#E7F3EB; --review:#A8660F; --review-bg:#FBF0DD; --fail:#B23A2E; --fail-bg:#FBEAE8;
+    --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace; --sans:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);}
+  body{padding:20px;}
+  .app{max-width:1320px;margin:0 auto;}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .hdr-title{font-size:22px;font-weight:700;letter-spacing:0.2px;}
+  .hdr-sub{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .grid{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start;}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;}
+  .panel-hdr{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px;}
+  .panel-body{padding:16px;}
+  fieldset{border:none;padding:0;margin:0 0 18px 0;}
+  legend{font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--blue-deep);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:6px;width:100%;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px;}
+  .field input, .field select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:3px;font-size:14px;font-family:var(--mono);background:#F6F7F9;color:var(--ink);}
+  .field input:focus, .field select:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue);}
+  .field .hint{font-size:11px;color:#8A93A0;margin-top:3px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+  @media (max-width:420px){.row4{grid-template-columns:1fr 1fr;}}
+  .btn-calc{width:100%;padding:13px;background:var(--blue-deep);color:#fff;border:none;border-radius:3px;font-size:14.5px;font-weight:700;letter-spacing:0.02em;cursor:pointer;margin-top:4px;}
+  .btn-calc:hover{background:var(--blue);}
+  .status-banner{padding:12px 16px;border-radius:3px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .status-banner.pass{background:var(--pass-bg);color:var(--pass);border:1px solid var(--pass);}
+  .status-banner.review{background:var(--review-bg);color:var(--review);border:1px solid var(--review);}
+  .status-banner.fail{background:var(--fail-bg);color:var(--fail);border:1px solid var(--fail);}
+  .status-banner .tag{font-size:11px;padding:3px 8px;border-radius:2px;background:rgba(0,0,0,0.08);}
+  .actions-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  @media (max-width:700px){.actions-grid{grid-template-columns:repeat(2,1fr);}}
+  .action-card{border:1px solid var(--line);border-radius:3px;padding:10px 12px;background:#F6F7F9;}
+  .action-card .k{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;}
+  .action-card .v{font-family:var(--mono);font-size:17px;font-weight:700;margin-top:3px;}
+  .check-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;}
+  .check-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-soft);border-bottom:1.5px solid var(--ink);padding:6px 8px;}
+  .check-table td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .check-table td.num{font-family:var(--mono);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:2px;font-size:11px;font-weight:700;}
+  .pill.pass{background:var(--pass-bg);color:var(--pass);}
+  .pill.review{background:var(--review-bg);color:var(--review);}
+  .pill.fail{background:var(--fail-bg);color:var(--fail);}
+  .bar-options{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+  @media (max-width:900px){.bar-options{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:520px){.bar-options{grid-template-columns:1fr;}}
+  .bar-opt{border:1.5px solid var(--line);border-radius:3px;padding:10px;cursor:pointer;background:#F6F7F9;}
+  .bar-opt.selected{border-color:var(--blue);background:#EAF1FB;}
+  .bar-opt .title{font-weight:700;font-size:14px;}
+  .bar-opt .sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .bar-opt .sub b{color:var(--ink);font-family:var(--mono);}
+  .section-wrap{display:grid;grid-template-columns:260px 1fr 1fr;gap:14px;margin-bottom:16px;}
+  @media (max-width:900px){.section-wrap{grid-template-columns:1fr;}}
+  .svg-box{border:1px solid var(--line);border-radius:3px;background:#F6F7F9;display:flex;align-items:center;justify-content:center;padding:10px;}
+  .diagram-box{border:1px solid var(--line);border-radius:3px;background:#F6F7F9;padding:8px;}
+  .diagram-box .lbl{font-size:11px;font-weight:700;color:var(--blue-deep);text-transform:uppercase;letter-spacing:0.04em;padding:2px 4px 6px 4px;}
+  details.calc-sheet{border:1px solid var(--line);border-radius:3px;margin-bottom:12px;}
+  details.calc-sheet summary{padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer;background:#F6F7F9;}
+  .calc-sheet .content{padding:4px 14px 14px 14px;}
+  .step{padding:10px 0;border-bottom:1px dashed var(--line);}
+  .step:last-child{border-bottom:none;}
+  .step .step-title{font-weight:700;font-size:12.5px;color:var(--blue-deep);}
+  .step .step-formula{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .step .step-result{font-family:var(--mono);font-size:13px;margin-top:3px;}
+  .step .step-clause{font-size:10.5px;color:#8A93A0;margin-top:3px;}
+  .empty-state{padding:60px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  .empty-state .icon{font-size:30px;margin-bottom:10px;}
+  .note{font-size:11.5px;color:var(--ink-soft);background:#EAEDF1;border-left:3px solid var(--blue);padding:8px 10px;margin-bottom:14px;border-radius:0 3px 3px 0;}
+  .footer-note{font-size:11px;color:#8A93A0;text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--line);}
+  .disclaimer-bar{background:#12315C;color:#fff;padding:9px 16px;font-size:12px;text-align:center;border-radius:3px;margin-bottom:16px;line-height:1.5;}
+  .disclaimer-bar b{color:#FFD98A;}
+  .error-panel{background:var(--fail-bg);border:1.5px solid var(--fail);border-radius:4px;padding:14px 16px;margin-bottom:16px;}
+  .error-panel .title{font-weight:700;color:var(--fail);font-size:13.5px;margin-bottom:8px;}
+  .error-panel ul{margin:0;padding-left:18px;font-size:13px;color:#7A241C;}
+  .error-panel li{margin-bottom:4px;}
+  .shape-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;}
+  .shape-tab{border:1.5px solid var(--line);border-radius:3px;padding:8px 4px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;background:#F6F7F9;color:var(--ink-soft);}
+  .shape-tab.active{border-color:var(--blue);background:#EAF1FB;color:var(--blue-deep);}
+  @media print{
+    body{background:#fff;padding:0;} .app{max-width:100%;} .grid{display:block;}
+    .grid > .panel:first-child{display:none;}
+    .hdr{border-bottom:1.5px solid #000;margin-bottom:10px;padding-bottom:8px;}
+    .panel{border:1px solid #bbb;box-shadow:none;break-inside:avoid;margin-bottom:10px;}
+    .action-card,.bar-opt,.step,.diagram-box,.svg-box{break-inside:avoid;}
+    .status-banner{break-inside:avoid;}
+    .bar-options{grid-template-columns:1fr 1fr;} .section-wrap{grid-template-columns:1fr;}
+    details.calc-sheet .content{display:block !important;} details.calc-sheet summary{list-style:none;}
+    details.calc-sheet summary::-webkit-details-marker{display:none;} .footer-note{display:none;}
+    @page{margin:14mm;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Handasium — RCC Column Designer</div>
+      <div class="hdr-sub">BS 8110-1:1997 · Rectangular, Circular, L, T &amp; Cross sections · Tied columns, short &amp; slender, uniaxial &amp; biaxial</div>
+    </div>
+  </div>
+
+  <div class="disclaimer-bar">
+    <b>Engineering aid, not a substitute for judgement.</b> This tool assists preliminary and detailed column design to BS 8110-1:1997. All outputs must be independently checked and approved by the responsible engineer before use in construction.
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="panel-hdr">Inputs</div>
+      <div class="panel-body">
+
+        <fieldset>
+          <legend>Design Standard</legend>
+          <div class="field"><label>Standard</label>
+            <select id="standard">
+              <option value="bs8110" selected>BS 8110-1:1997</option>
+              <option value="ec2">Eurocode 2 (EN 1992-1-1) — Nominal Curvature method</option>
+              <option value="aci">ACI 318M (SI) — Moment Magnification method</option>
+              <option value="is456">IS 456:2000 — Additional Moment method</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Section Shape</legend>
+          <div class="shape-tabs" id="shapeTabs">
+            <div class="shape-tab active" data-shape="rect">Rectangular</div>
+            <div class="shape-tab" data-shape="circular">Circular</div>
+            <div class="shape-tab" data-shape="L">L-Shaped</div>
+            <div class="shape-tab" data-shape="T">T-Shaped</div>
+            <div class="shape-tab" data-shape="cross">Cross</div>
+          </div>
+
+          <div id="dims-rect">
+            <div class="row2">
+              <div class="field"><label>Width, b (mm)</label><input type="number" id="rb" value="400"></div>
+              <div class="field"><label>Depth, h (mm)</label><input type="number" id="rh" value="400"></div>
+            </div>
+            <div class="hint">h is in the plane of X-X bending (paired with lex); b is in the plane of Y-Y bending (paired with ley).</div>
+          </div>
+
+          <div id="dims-circular" style="display:none;">
+            <div class="field"><label>Diameter, D (mm)</label><input type="number" id="cD" value="450"></div>
+          </div>
+
+          <div id="dims-L" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>Overall width, B (mm)</label><input type="number" id="lB" value="500"></div>
+              <div class="field"><label>Overall depth, H (mm)</label><input type="number" id="lH" value="500"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>Vertical leg thickness, t1 (mm)</label><input type="number" id="lT1" value="200"></div>
+              <div class="field"><label>Horizontal leg thickness, t2 (mm)</label><input type="number" id="lT2" value="200"></div>
+            </div>
+            <div class="hint">Notch removed from the top-right corner: leg widths t1 (left, full height) and t2 (bottom, full width).</div>
+          </div>
+
+          <div id="dims-T" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>Flange width, B (mm)</label><input type="number" id="tB" value="500"></div>
+              <div class="field"><label>Overall depth, H (mm)</label><input type="number" id="tH" value="500"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>Flange thickness, tf (mm)</label><input type="number" id="tTf" value="200"></div>
+              <div class="field"><label>Web thickness, tw (mm)</label><input type="number" id="tTw" value="200"></div>
+            </div>
+            <div class="hint">Flange at top (y=0..tf, full width B); web centred below, width tw.</div>
+          </div>
+
+          <div id="dims-cross" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>Overall width, B (mm)</label><input type="number" id="xB" value="500"></div>
+              <div class="field"><label>Overall depth, H (mm)</label><input type="number" id="xH" value="500"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>Vertical arm thickness, tx (mm)</label><input type="number" id="xTx" value="200"></div>
+              <div class="field"><label>Horizontal arm thickness, ty (mm)</label><input type="number" id="xTy" value="200"></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Materials &amp; Cover</legend>
+          <div class="row2">
+            <div class="field"><label>Nominal cover (mm)</label><input type="number" id="cover" value="35"></div>
+            <div class="field"><label>Link diameter (mm)</label>
+              <select id="linkDia"><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="16">16</option></select>
+            </div>
+          </div>
+          <div id="mat-bs8110">
+            <div class="row2">
+              <div class="field"><label>fcu (N/mm²)</label><input type="number" id="fcu" value="30"></div>
+              <div class="field"><label>fy — main bars (N/mm²)</label><input type="number" id="fy" value="460"></div>
+            </div>
+            <div class="field"><label>fyv — links (N/mm²)</label><input type="number" id="fyv" value="460"></div>
+          </div>
+          <div id="mat-ec2" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>fck (N/mm²)</label><input type="number" id="fck" value="30"></div>
+              <div class="field"><label>fyk — main bars (N/mm²)</label><input type="number" id="fyk" value="500"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>αcc</label><input type="number" id="alphaCc" value="0.85" step="0.05"></div>
+              <div class="field"><label>Effective creep ratio, φef</label><input type="number" id="phiEf" value="0" step="0.1"></div>
+            </div>
+            <div class="hint">αcc is National-Annex-dependent (0.85 UK, up to 1.0 elsewhere). φef=0 excludes creep amplification of second-order effects (Cl 5.8.4) — set a realistic value for genuinely slender columns.</div>
+          </div>
+          <div id="mat-aci" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>f'c (N/mm²)</label><input type="number" id="fcPrime" value="28"></div>
+              <div class="field"><label>fy — main bars (N/mm²)</label><input type="number" id="fyAci" value="420"></div>
+            </div>
+            <div class="field"><label>Sustained-load ratio, βdns</label><input type="number" id="betaDns" value="0.6" step="0.1"></div>
+            <div class="hint">βdns = ratio of max factored sustained axial load to max factored total axial load, used in the EI stiffness reduction (Cl 6.6.4.4.4). Tied columns only — spiral confinement is a later phase.</div>
+          </div>
+          <div id="mat-is456" style="display:none;">
+            <div class="row2">
+              <div class="field"><label>fck (N/mm²)</label><input type="number" id="fckIs" value="25"></div>
+              <div class="field"><label>fy — main bars (N/mm²)</label><input type="number" id="fyIs" value="415"></div>
+            </div>
+            <div class="field"><label>fyv — ties (N/mm²)</label><input type="number" id="fyvIs" value="415"></div>
+            <div class="hint">Uses the same end-condition (1–4) effective-length fields as BS 8110, below — Table 28 is treated as materially equivalent to Table 3.19/3.20 (flagged in the calc sheet).</div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Bracing, End Conditions &amp; Height</legend>
+          <div class="field"><label>Column type</label>
+            <select id="braced"><option value="braced" selected>Braced</option><option value="unbraced">Unbraced</option></select>
+          </div>
+          <div class="field"><label>Clear height between restraints, Lo (m)</label><input type="number" id="Lo" value="3.5" step="0.1"></div>
+
+          <div id="brace-bs8110">
+            <div class="hint" style="margin-top:-6px;margin-bottom:8px;">End conditions 1–3 per Table 3.19 (braced) / 3.20 (unbraced), Cl 3.8.1.6.2. Condition 4 only as top=4/bottom=1, unbraced.</div>
+            <div class="row4">
+              <div class="field"><label>X-X top</label><select id="topX"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+              <div class="field"><label>X-X bottom</label><select id="botX"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+              <div class="field"><label>Y-Y top</label><select id="topY"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+              <div class="field"><label>Y-Y bottom</label><select id="botY"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+            </div>
+          </div>
+
+          <div id="brace-ec2" style="display:none;">
+            <div class="hint" style="margin-top:-6px;margin-bottom:8px;">K1/K2 are relative end flexibilities (Annex H) — the ratio of the column's own stiffness to the combined stiffness of connecting beams at that end. Use 0.1 for an idealised near-rigid connection (not 0 — perfectly rigid is unrealistic, Cl 5.8.3.2(3)); use larger values (≈1–5) for more flexible connections such as a pinned or lightly-framed end.</div>
+            <div class="row4">
+              <div class="field"><label>X-X K1 (top)</label><input type="number" id="K1x" value="0.5" step="0.05"></div>
+              <div class="field"><label>X-X K2 (bottom)</label><input type="number" id="K2x" value="0.5" step="0.05"></div>
+              <div class="field"><label>Y-Y K1 (top)</label><input type="number" id="K1y" value="0.5" step="0.05"></div>
+              <div class="field"><label>Y-Y K2 (bottom)</label><input type="number" id="K2y" value="0.5" step="0.05"></div>
+            </div>
+          </div>
+
+          <div id="brace-aci" style="display:none;">
+            <div class="hint" style="margin-top:-6px;margin-bottom:8px;">ψA/ψB are relative end stiffness ratios (Cl 6.2.5, Fig R6.2.5.1) — same concept as EC2's K1/K2, different formula. Use small values (~0.5–1) for typical framed connections, larger for more flexible ends.</div>
+            <div class="row4">
+              <div class="field"><label>X-X ψA (top)</label><input type="number" id="psiAx" value="1.0" step="0.1"></div>
+              <div class="field"><label>X-X ψB (bottom)</label><input type="number" id="psiBx" value="1.0" step="0.1"></div>
+              <div class="field"><label>Y-Y ψA (top)</label><input type="number" id="psiAy" value="1.0" step="0.1"></div>
+              <div class="field"><label>Y-Y ψB (bottom)</label><input type="number" id="psiBy" value="1.0" step="0.1"></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Design Loads</legend>
+          <div class="field"><label>Ultimate axial load, N (kN)</label><input type="number" id="N" value="1500"></div>
+          <div class="field"><label>Moment input mode</label>
+            <select id="momentMode">
+              <option value="frame" selected>From frame analysis (M1/M2 per axis)</option>
+              <option value="direct">Direct design moments (already final, e.g. from ETABS/STAAD)</option>
+            </select>
+          </div>
+          <div id="frameMomentFields">
+            <div class="note">M2 is the numerically larger end moment for that axis; M1 the smaller. Set curvature to <b>Double</b> if the column bends in reverse (S-shape) between its ends.</div>
+            <div class="hint" style="font-weight:700;color:var(--blue-deep);margin-bottom:4px;">About X-X axis</div>
+            <div class="row2">
+              <div class="field"><label>M1x (kNm)</label><input type="number" id="M1x" value="30"></div>
+              <div class="field"><label>M2x (kNm)</label><input type="number" id="M2x" value="80"></div>
+            </div>
+            <div class="field"><label>Curvature (X-X)</label><select id="curvatureX"><option value="single">Single</option><option value="double">Double</option></select></div>
+            <div class="hint" style="font-weight:700;color:var(--blue-deep);margin:8px 0 4px 0;">About Y-Y axis</div>
+            <div class="row2">
+              <div class="field"><label>M1y (kNm)</label><input type="number" id="M1y" value="20"></div>
+              <div class="field"><label>M2y (kNm)</label><input type="number" id="M2y" value="55"></div>
+            </div>
+            <div class="field"><label>Curvature (Y-Y)</label><select id="curvatureY"><option value="single">Single</option><option value="double">Double</option></select></div>
+          </div>
+          <div id="directMomentFields" style="display:none;">
+            <div class="note">Direct mode: supply final ultimate design moments (already inclusive of any second-order effects). Slenderness is still reported for information, but the Madd buildup is skipped to avoid double-counting.</div>
+            <div class="row2">
+              <div class="field"><label>Mx design (kNm)</label><input type="number" id="MxDirect" value="0"></div>
+              <div class="field"><label>My design (kNm)</label><input type="number" id="MyDirect" value="0"></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <button class="btn-calc" id="calcBtn">Design Column</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hdr">Results</div>
+      <div class="panel-body" id="resultsBody">
+        <div class="empty-state"><div class="icon">▦</div>Choose a section shape, enter loads, then click <b>Design Column</b>.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">All formulas per BS 8110-1:1997. This tool assists design; the responsible engineer must verify and approve all outputs.</div>
+</div>
+
+<script>
+/* =========================================================================
+   HANDASIUM — DETERMINISTIC CALC ENGINE (COLUMN)
+   engine[standardKey].calculate(input) -> result   (only bs8110 implemented)
+
+   CORE ARCHITECTURE: the N-M capacity check is built on a single generalised
+   polygon / strain-compatibility fiber solver (buildInteractionCurveGeneral)
+   that works for ANY simple polygon section with bars at real (x,y)
+   coordinates — rectangular, circular (as a many-sided polygon), L, T and
+   cross shapes all flow through the same verified core. Only the geometry
+   generator and the biaxial-combination method differ per shape:
+     - rectangular : exact BS 8110 Cl 3.8.4.5 / Table 3.22 method
+     - circular    : resultant moment vs the (axisymmetric) interaction curve
+     - L / T / cross (asymmetric): Bresler load-contour method (not a BS 8110
+       clause — flagged — the standard generalised approach used industry-wide
+       for irregular sections, and the same method IS 456 Cl 39.6 codifies)
+   ========================================================================= */
+
+const BAR_AREAS = { 12:113, 16:201, 20:314, 25:491, 32:804, 40:1257 };
+const UNIT_MASS = { 8:0.395, 10:0.617, 12:0.888, 16:1.578, 20:2.466, 25:3.853, 32:6.313, 40:9.865 };
+const BAR_DIAMETERS_TRIED = [16,20,25,32];
+
+function round(v, dp){ const m = Math.pow(10,dp); return Math.round(v*m)/m; }
+function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+/* ---------------- Shape geometry generators (local coords, mm) ---------------- */
+function shapeVertices(shape, d){
+  switch(shape){
+    case 'circular': {
+      const R=d.D/2, n=48, pts=[];
+      for(let i=0;i<n;i++){ const a=2*Math.PI*i/n; pts.push({x:R+R*Math.cos(a), y:R+R*Math.sin(a)}); }
+      return pts;
+    }
+    case 'L':
+      return [ {x:0,y:0},{x:d.B,y:0},{x:d.B,y:d.t2},{x:d.t1,y:d.t2},{x:d.t1,y:d.H},{x:0,y:d.H} ];
+    case 'T': {
+      const x0=(d.B-d.tw)/2, x1=(d.B+d.tw)/2;
+      return [ {x:0,y:0},{x:d.B,y:0},{x:d.B,y:d.tf},{x:x1,y:d.tf},{x:x1,y:d.H},{x:x0,y:d.H},{x:x0,y:d.tf},{x:0,y:d.tf} ];
+    }
+    case 'cross': {
+      const x0=(d.B-d.tx)/2, x1=(d.B+d.tx)/2, y0=(d.H-d.ty)/2, y1=(d.H+d.ty)/2;
+      return [ {x:x0,y:0},{x:x1,y:0},{x:x1,y:y0},{x:d.B,y:y0},{x:d.B,y:y1},{x:x1,y:y1},
+                {x:x1,y:d.H},{x:x0,y:d.H},{x:x0,y:y1},{x:0,y:y1},{x:0,y:y0},{x:x0,y:y0} ];
+    }
+    default: // rect
+      return [ {x:0,y:0},{x:d.b,y:0},{x:d.b,y:d.h},{x:0,y:d.h} ];
+  }
+}
+function minBarsForShape(shape){ return shape==='circular' ? 6 : 4; }
+
+/* ---------------- Polygon geometry helpers ---------------- */
+function polygonCentroid(pts){
+  let A=0, cx=0, cy=0; const n=pts.length;
+  for(let i=0;i<n;i++){
+    const p=pts[i], q=pts[(i+1)%n];
+    const cross = p.x*q.y - q.x*p.y;
+    A += cross; cx += (p.x+q.x)*cross; cy += (p.y+q.y)*cross;
+  }
+  A/=2;
+  if(Math.abs(A)<1e-9) return { area:0, cx:pts[0]?pts[0].x:0, cy:pts[0]?pts[0].y:0, signedArea:A };
+  cx/=(6*A); cy/=(6*A);
+  return { area:Math.abs(A), cx, cy, signedArea:A };
+}
+function polygonSecondMoments(pts){
+  const c = polygonCentroid(pts);
+  let Ixx0=0, Iyy0=0; const n=pts.length;
+  for(let i=0;i<n;i++){
+    const p=pts[i], q=pts[(i+1)%n];
+    const cross = p.x*q.y - q.x*p.y;
+    Ixx0 += (p.y*p.y + p.y*q.y + q.y*q.y)*cross;
+    Iyy0 += (p.x*p.x + p.x*q.x + q.x*q.x)*cross;
+  }
+  Ixx0/=12; Iyy0/=12;
+  const Ixx = Math.abs(Ixx0 - c.signedArea*c.cy*c.cy);
+  const Iyy = Math.abs(Iyy0 - c.signedArea*c.cx*c.cx);
+  return { Ixx, Iyy, Ac:c.area, Cx:c.cx, Cy:c.cy };
+}
+function boundingBox(pts){
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  return { xmin:Math.min(...xs), xmax:Math.max(...xs), ymin:Math.min(...ys), ymax:Math.max(...ys) };
+}
+/* Sutherland-Hodgman clip to half-plane y <= threshold */
+function clipHalfPlaneY(vertices, threshold){
+  const out=[]; const n=vertices.length;
+  for(let i=0;i<n;i++){
+    const cur=vertices[i], nxt=vertices[(i+1)%n];
+    const curIn = cur.y<=threshold+1e-9, nxtIn = nxt.y<=threshold+1e-9;
+    if(curIn) out.push(cur);
+    if(curIn!==nxtIn){
+      const denom=(nxt.y-cur.y); const t = Math.abs(denom)>1e-9 ? (threshold-cur.y)/denom : 0;
+      out.push({ x: cur.x+t*(nxt.x-cur.x), y: threshold });
+    }
+  }
+  return out;
+}
+/* Transform points for the 4 sweep directions: swapXY converts a Y-Y sweep
+   into the same code path as X-X; mirrorU flips which face is in compression
+   (needed because asymmetric sections have different capacity each way). */
+function transformPts(pts, swapXY, mirrorU){
+  return pts.map(p=>{
+    let x=p.x, y=p.y;
+    if(swapXY){ const t=x; x=y; y=t; }
+    if(mirrorU){ y=-y; }
+    return { x, y, dia:p.dia, area:p.area };
+  });
+}
+
+/* Strain-compatibility N-M interaction curve, general polygon + real bar
+   coordinates. Compression sweeps from the y=min face of the (transformed)
+   section. Standard-agnostic: takes the concrete design stress (0.45fcu for
+   BS 8110, eta*fcd for EC2, 0.85f'c for ACI), the stress-block depth factor
+   (0.9 for BS 8110, lambda for EC2, beta1 for ACI), the steel design stress
+   (0.87fy / fyd / fy), and the concrete ultimate strain ecu (0.0035 for
+   BS 8110 & EC2, 0.003 for ACI) as explicit parameters, so all three engines
+   share this exact same verified core. An optional phiFn(strainExtremeTension)
+   scales each point by ACI's strength-reduction factor, which varies along
+   the curve (compression-controlled -> transition -> tension-controlled) —
+   producing the actual phi*Pn/phi*Mn *design* curve, not the nominal one, as
+   ACI's own interaction diagrams are defined. Returns points sorted by
+   ascending N (kN, kNm); phi is echoed per point when phiFn is supplied. */
+function buildInteractionCurveGeneral(vertices, bars, concreteStress, blockFactor, steelDesignStress, swapXY, mirrorU, ecu, phiFn){
+  ecu = ecu || 0.0035;
+  const V = transformPts(vertices, swapXY, mirrorU);
+  const B = transformPts(bars, swapXY, mirrorU);
+  const { Ac, Cy } = polygonSecondMoments(V);
+  const bb = boundingBox(V);
+  const dimDepth = bb.ymax-bb.ymin;
+  const Es=200000, fyd=steelDesignStress;
+  const maxBarY = B.length ? Math.max(...B.map(b=>b.y)) : bb.ymax; // extreme tension layer
+  const pts=[]; const nSteps=110;
+  for(let i=1;i<=nSteps;i++){
+    const x = dimDepth*3*i/nSteps;
+    const s = Math.min(blockFactor*x, dimDepth);
+    const threshold = bb.ymin+s;
+    const clip = clipHalfPlaneY(V, threshold);
+    const cc = clip.length>=3 ? polygonCentroid(clip) : {area:0, cy:threshold};
+    const Fcc = concreteStress*cc.area; // N
+    let Fsteel=0, Msteel=0;
+    B.forEach(bar=>{
+      const strain = ecu*(x-(bar.y-bb.ymin))/x;
+      const stress = clamp(Es*strain, -fyd, fyd);
+      const F = bar.area*stress;
+      Fsteel += F; Msteel += F*(Cy-bar.y);
+    });
+    let Ncap = (Fcc+Fsteel)/1000;
+    const Mconc = Fcc*(Cy-(cc.cy!==undefined?cc.cy:threshold));
+    let M = (Mconc+Msteel)/1e6;
+    let phi=1;
+    if(phiFn){
+      const strainExtreme = ecu*(x-(maxBarY-bb.ymin))/x; // negative = tension
+      phi = phiFn(-strainExtreme); // phiFn expects tensile strain as positive
+      Ncap*=phi; M*=phi;
+    }
+    pts.push({ N:Ncap, M:Math.abs(M), x, phi });
+  }
+  return pts.sort((a,b)=>a.N-b.N);
+}
+function capacityAtN(curvePts, Ntarget){
+  if(!curvePts.length) return 0;
+  if(Ntarget<=curvePts[0].N) return curvePts[0].M;
+  if(Ntarget>=curvePts[curvePts.length-1].N) return curvePts[curvePts.length-1].M;
+  for(let i=0;i<curvePts.length-1;i++){
+    const a=curvePts[i], b=curvePts[i+1];
+    if(Ntarget>=a.N && Ntarget<=b.N){
+      if(b.N===a.N) return Math.max(a.M,b.M);
+      const t=(Ntarget-a.N)/(b.N-a.N);
+      return a.M+(b.M-a.M)*t;
+    }
+  }
+  return curvePts[curvePts.length-1].M;
+}
+/* For the Bresler reciprocal-load method: find the axial capacity N at which
+   the curve's eccentricity M/N equals a target e. e = M/N decreases
+   monotonically as N increases along a normal interaction curve, from
+   e->infinity (pure bending, N->0) down to e=0 (pure axial). */
+function capacityAtEccentricity(curvePts, eTarget){
+  const withE = curvePts.filter(p=>p.N>1e-6).map(p=>({...p, e:p.M/p.N}));
+  if(!withE.length) return { N:0, M:0 };
+  if(eTarget>=withE[0].e) return withE[0]; // largest e is at smallest N
+  if(eTarget<=withE[withE.length-1].e) return withE[withE.length-1];
+  for(let i=0;i<withE.length-1;i++){
+    const a=withE[i], b=withE[i+1];
+    if(eTarget<=a.e && eTarget>=b.e){
+      const t = (a.e-eTarget)/(a.e-b.e||1e-9);
+      return { N:a.N+(b.N-a.N)*t, M:a.M+(b.M-a.M)*t };
+    }
+  }
+  return withE[withE.length-1];
+}
+/* Envelope over both compression-face directions (asymmetric sections can
+   have a different capacity each way) — always the conservative (lower) M. */
+function envelopeCapacity(vertices, bars, concreteStress, blockFactor, steelDesignStress, swapXY, ecu, phiFn){
+  const c1 = buildInteractionCurveGeneral(vertices, bars, concreteStress, blockFactor, steelDesignStress, swapXY, false, ecu, phiFn);
+  const c2 = buildInteractionCurveGeneral(vertices, bars, concreteStress, blockFactor, steelDesignStress, swapXY, true, ecu, phiFn);
+  return { curveA:c1, curveB:c2, capAt:(N)=> Math.min(capacityAtN(c1,N), capacityAtN(c2,N)) };
+}
+
+/* ---------------- Bar placement: even arc-length spacing around an inset perimeter ---------------- */
+function insetPolygon(vertices, inset){
+  const n=vertices.length;
+  const signedArea = polygonCentroid(vertices).signedArea;
+  const ccw = signedArea>0;
+  const out=[];
+  for(let i=0;i<n;i++){
+    const prev=vertices[(i-1+n)%n], cur=vertices[i], next=vertices[(i+1)%n];
+    let e1={x:cur.x-prev.x,y:cur.y-prev.y}, e2={x:next.x-cur.x,y:next.y-cur.y};
+    const l1=Math.hypot(e1.x,e1.y)||1, l2=Math.hypot(e2.x,e2.y)||1;
+    e1={x:e1.x/l1,y:e1.y/l1}; e2={x:e2.x/l2,y:e2.y/l2};
+    const sign = ccw?1:-1;
+    const n1={x:-sign*e1.y, y:sign*e1.x}, n2={x:-sign*e2.y, y:sign*e2.x};
+    let bis={x:n1.x+n2.x,y:n1.y+n2.y};
+    const bl=Math.hypot(bis.x,bis.y);
+    bis = bl<1e-6 ? n1 : {x:bis.x/bl,y:bis.y/bl};
+    const dot = n1.x*bis.x+n1.y*bis.y;
+    const miter = dot>0.05 ? inset/dot : inset*2.5;
+    const capped = Math.min(miter, inset*3);
+    out.push({ x:cur.x+bis.x*capped, y:cur.y+bis.y*capped });
+  }
+  return out;
+}
+function barsAroundPerimeter(vertices, n, cover, linkDia, dia){
+  const inset = cover+linkDia+dia/2;
+  const insetV = insetPolygon(vertices, inset);
+  const m=insetV.length;
+  const edgeLens=[]; let perim=0;
+  for(let i=0;i<m;i++){ const a=insetV[i], b=insetV[(i+1)%m]; const L=Math.hypot(b.x-a.x,b.y-a.y); edgeLens.push(L); perim+=L; }
+  const bars=[];
+  for(let k=0;k<n;k++){
+    const target = perim*k/n;
+    let acc=0, idx=0;
+    while(idx<m-1 && acc+edgeLens[idx]<target){ acc+=edgeLens[idx]; idx++; }
+    const a=insetV[idx], b=insetV[(idx+1)%m];
+    const t = edgeLens[idx]>1e-6 ? (target-acc)/edgeLens[idx] : 0;
+    bars.push({ x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t, dia, area:BAR_AREAS[dia] });
+  }
+  return bars;
+}
+
+// BS 8110-1:1997 Table 3.19 (braced) / Table 3.20 (unbraced) beta, keyed 'top-bottom'
+const BETA_BRACED = { '1-1':0.75,'1-2':0.80,'1-3':0.90,'2-1':0.80,'2-2':0.85,'2-3':0.95,'3-1':0.90,'3-2':0.95,'3-3':1.00 };
+const BETA_UNBRACED = { '1-1':1.20,'1-2':1.30,'1-3':1.60,'2-1':1.30,'2-2':1.50,'2-3':1.80,'3-1':1.60,'3-2':1.80,'4-1':2.20 };
+// Table 3.22 — beta vs N/(bhfcu), rectangular sections only
+const TABLE_3_22 = [ [0,1.00],[0.1,0.88],[0.2,0.77],[0.3,0.65],[0.4,0.53],[0.5,0.42] ];
+function interpBeta322(Nr){
+  if(Nr<=0) return 1.00; if(Nr>=0.5) return 0.42;
+  for(let i=0;i<TABLE_3_22.length-1;i++){
+    const [x0,y0]=TABLE_3_22[i], [x1,y1]=TABLE_3_22[i+1];
+    if(Nr>=x0 && Nr<=x1) return y0+(y1-y0)*(Nr-x0)/(x1-x0);
+  }
+  return 0.42;
+}
+const BRESLER_ALPHA = 1.5; // Bresler's recommended value for sections with uniformly distributed reinforcement
+
+const engines = {
+  bs8110: {
+    calculate(input){
+      const { shape, cover,linkDia,fcu,fy,fyv,braced,topX,botX,topY,botY,Lo,N,
+              momentMode,M1x,M2x,curvatureX,M1y,M2y,curvatureY,MxDirect,MyDirect } = input;
+      const steps=[], flags=[];
+
+      /* ---------------- 0. SECTION GEOMETRY ---------------- */
+      const vertices = shapeVertices(shape, input.dims);
+      const { Ixx, Iyy, Ac, Cx, Cy } = polygonSecondMoments(vertices);
+      const bb = boundingBox(vertices);
+      const dimX = bb.xmax-bb.xmin, dimY = bb.ymax-bb.ymin; // bounding extents
+
+      let h, b, heffX, beffY; // heffX: equivalent depth for X-X slenderness (uses Ixx); beffY: for Y-Y (uses Iyy)
+      if(shape==='rect'){
+        b = input.dims.b; h = input.dims.h; heffX = h; beffY = b;
+      } else {
+        heffX = Math.sqrt(12*Ixx/Ac);   // = h exactly for a rectangle; radius-of-gyration generalisation otherwise
+        beffY = Math.sqrt(12*Iyy/Ac);
+        b = beffY; h = heffX; // used only as fallback reference dimensions in generic messaging
+      }
+      steps.push({t:'Section properties', f:'Polygon shoelace formulae: Ac, centroid, Ixx, Iyy',
+        r:`Ac = ${round(Ac,0)} mm² &nbsp;|&nbsp; heff,X-X = ${round(heffX,1)} mm, beff,Y-Y = ${round(beffY,1)} mm (radius-of-gyration equivalent; exact section dimension for rectangular)`,
+        c: shape==='rect' ? 'Exact' : 'Generalised via i=√(I/A), heff=i√12 (reduces to the exact rectangular case)'});
+
+      /* ---------------- 1. EFFECTIVE LENGTH & SLENDERNESS ---------------- */
+      const betaTable = braced?BETA_BRACED:BETA_UNBRACED;
+      const betaX = betaTable[`${topX}-${botX}`], betaY = betaTable[`${topY}-${botY}`];
+      if(betaX==null || betaY==null) flags.push({level:'fail', msg:`The selected end-condition combination is not defined in BS 8110 ${braced?'Table 3.19':'Table 3.20'} for one of the axes.`});
+      const LoMM = Lo*1000;
+      const lex=(betaX||0)*LoMM, ley=(betaY||0)*LoMM;
+      const ratioX = heffX>0?lex/heffX:0, ratioY = beffY>0?ley/beffY:0;
+      const slenderLimit = braced?15:10;
+      const isShort = ratioX<=slenderLimit && ratioY<=slenderLimit;
+      steps.push({t:'Effective length', f:'le = β·Lo', r:`lex = ${round(lex/1000,3)} m (β=${betaX}), ley = ${round(ley/1000,3)} m (β=${betaY})`, c:'Cl 3.8.1.6, Table 3.19/3.20'});
+      steps.push({t:'Slenderness classification', f:`Short if lex/heff ≤ ${slenderLimit} and ley/beff ≤ ${slenderLimit}`,
+        r:`lex/heff = ${round(ratioX,2)}, ley/beff = ${round(ratioY,2)} → <b>${isShort?'SHORT':'SLENDER'}</b> (${braced?'braced':'unbraced'})`, c:'Cl 3.8.1.3'});
+
+      const minDimBB = Math.min(dimX,dimY), maxDimBB = Math.max(dimX,dimY);
+      if(LoMM>60*minDimBB) flags.push({level:'fail', msg:'Clear height exceeds 60 × the smaller overall dimension (Cl 3.8.1.7) — outside this method\'s scope.'});
+      if(!braced && LoMM>100*minDimBB*minDimBB/maxDimBB) flags.push({level:'review', msg:'Unbraced column height approaches the Cl 3.8.1.8 limit — verify against the full clause.'});
+
+      /* ---------------- 2. MINIMUM ECCENTRICITY ---------------- */
+      const eminX = Math.min(0.05*dimY,20), eminY = Math.min(0.05*dimX,20); // "dimension in the plane of bending"
+      const eminXMoment = N*eminX/1000, eminYMoment = N*eminY/1000;
+      steps.push({t:'Minimum eccentricity', f:'emin = 0.05 × dimension ≤ 20 mm',
+        r:`emin,x=${round(eminX,1)}mm→${round(eminXMoment,2)}kNm &nbsp;|&nbsp; emin,y=${round(eminY,1)}mm→${round(eminYMoment,2)}kNm`, c:'Cl 3.8.2.4'});
+
+      /* ---------------- 3. DESIGN MOMENTS PER AXIS (fn of trial Asc) ---------------- */
+      function designMomentsForAxis(AscTotal, dia, isX){
+        const dim = isX?heffX:beffY, otherDimEq = Ac/dim, le = isX?lex:ley;
+        const M1raw = isX?M1x:M1y, M2v = isX?M2x:M2y, curvature = isX?curvatureX:curvatureY;
+        const eminMoment = isX?eminXMoment:eminYMoment;
+        const M1s = curvature==='double' ? -M1raw : M1raw;
+        const Mi = Math.max(0.4*M1s+0.6*M2v, 0.4*M2v);
+        if(momentMode==='direct'){
+          const Mgiven = isX?MxDirect:MyDirect;
+          return { Mdesign: Math.max(Mgiven, eminMoment), Madd:0, K:null, Mi:null, governing:'Direct input' };
+        }
+        if(isShort){
+          const Mdesign = Math.max(M2v, eminMoment);
+          return { Mdesign, Madd:0, K:null, Mi, governing: Mdesign===M2v?'M2':'N·emin' };
+        }
+        const d = dim - cover - linkDia - dia/2;
+        const Nuz = (0.45*fcu*Ac + 0.95*fy*AscTotal)/1000;
+        const Nbal = (0.25*fcu*otherDimEq*d)/1000;
+        let K = (Nuz-Nbal)!==0 ? (Nuz-N)/(Nuz-Nbal) : 1; K = clamp(K,0,1);
+        const betaA = (1/2000)*Math.pow(le/dim,2);
+        const au = betaA*K*dim;
+        const Madd = N*(au/1000);
+        let Mdesign, governing;
+        if(braced){
+          const opts = { 'M2':M2v, 'Mi+Madd':Mi+Madd, 'M1+Madd/2':M1s+Madd/2, "N·emin":eminMoment };
+          Mdesign = Math.max(...Object.values(opts)); governing = Object.keys(opts).find(k=>opts[k]===Mdesign);
+        } else {
+          const opts = { 'M2+Madd': M2v+Madd, "N·emin": eminMoment };
+          Mdesign = Math.max(...Object.values(opts)); governing = Object.keys(opts).find(k=>opts[k]===Mdesign);
+        }
+        return { Mdesign, Madd, K, Mi, Nuz, Nbal, betaA, au, governing };
+      }
+
+      /* ---------------- 4. EVALUATE EACH BAR-DIAMETER OPTION ---------------- */
+      function evaluateOption(dia){
+        const area = BAR_AREAS[dia];
+        const minBars = minBarsForShape(shape);
+        let chosen=null;
+        for(let n=minBars; n<=32; n+=(n<10?2:4)){
+          const AscTotal = n*area, pct = 100*AscTotal/Ac;
+          if(pct>8) break;
+          const bars = barsAroundPerimeter(vertices, n, cover, linkDia, dia);
+          const distX = designMomentsForAxis(AscTotal, dia, true);
+          const distY = designMomentsForAxis(AscTotal, dia, false);
+
+          const envX = envelopeCapacity(vertices, bars, 0.45*fcu, 0.9, 0.87*fy, false); // X-X: sweep along y (native)
+          const envY = envelopeCapacity(vertices, bars, 0.45*fcu, 0.9, 0.87*fy, true);  // Y-Y: sweep along x (swapXY)
+          const McapX0 = envX.capAt(N), McapY0 = envY.capAt(N);
+
+          let biax;
+          if(shape==='rect'){
+            const hEff = h-cover-linkDia-dia/2, bEff = b-cover-linkDia-dia/2;
+            const Nr = (N*1000)/(b*h*fcu), beta = interpBeta322(Nr);
+            let governingAxis, Meq;
+            if(hEff>0 && bEff>0 && (distX.Mdesign/hEff)>=(distY.Mdesign/bEff)){ Meq=distX.Mdesign+beta*(hEff/bEff)*distY.Mdesign; governingAxis='x'; }
+            else { Meq=distY.Mdesign+beta*(bEff/hEff)*distX.Mdesign; governingAxis='y'; }
+            const Mcap = governingAxis==='x'?McapX0:McapY0;
+            const utilization = Mcap>0?Meq/Mcap:Infinity;
+            biax = { method:'table322', Nr:round(Nr,3), beta:round(beta,3), governingAxis, Meq:round(Meq,2), Mcap:round(Mcap,2), utilization };
+          } else if(shape==='circular'){
+            const Meq = Math.sqrt(distX.Mdesign*distX.Mdesign + distY.Mdesign*distY.Mdesign);
+            const Mcap = McapX0; // axisymmetric: identical either direction
+            const utilization = Mcap>0?Meq/Mcap:Infinity;
+            biax = { method:'resultant', Meq:round(Meq,2), Mcap:round(Mcap,2), utilization };
+          } else {
+            const utilization = Math.pow(distX.Mdesign/(McapX0||1e-6), BRESLER_ALPHA) + Math.pow(distY.Mdesign/(McapY0||1e-6), BRESLER_ALPHA);
+            biax = { method:'bresler', alpha:BRESLER_ALPHA, McapX0:round(McapX0,2), McapY0:round(McapY0,2), utilization };
+          }
+
+          const issues=[]; let status='PASS';
+          if(pct<0.4-1e-6){ status='FAIL'; issues.push('Below 0.4% minimum longitudinal steel (Cl 3.12.5.3)'); }
+          if(pct>6+1e-6){ status='FAIL'; issues.push('Exceeds 6% maximum longitudinal steel (Cl 3.12.6.2)'); }
+          if(N<0){ status='FAIL'; issues.push('Net tension not supported by this module.'); }
+          if(status!=='FAIL'){
+            if(biax.utilization>1.0) status='FAIL'; else if(biax.utilization>0.97) status='REVIEW';
+          }
+          const result = { dia,n,AscTotal:round(AscTotal,0), pct:round(pct,2), distX,distY,biax,status,issues,
+                            bars, McapX0:round(McapX0,2), McapY0:round(McapY0,2),
+                            utilization: round(biax.utilization,3),
+                            curveX: envX.curveA, curveY: envY.curveA };
+          if(status==='PASS'){ chosen=result; break; }
+          if(!chosen || (chosen.status==='FAIL' && status==='REVIEW')) chosen=result;
+        }
+        return chosen;
+      }
+
+      const options = BAR_DIAMETERS_TRIED.map(dia=>evaluateOption(dia)).filter(o=>o);
+      let selectedIndex = options.findIndex(o=>o.status==='PASS');
+      if(selectedIndex===-1) selectedIndex = options.findIndex(o=>o.status==='REVIEW');
+      if(selectedIndex===-1) selectedIndex = 0;
+
+      if(shape!=='rect' && shape!=='circular'){
+        flags.push({level:'review', msg:`Biaxial check for this ${shape==='L'?'L-shaped':shape==='T'?'T-shaped':'cross-shaped'} section uses the Bresler load-contour method (α=${BRESLER_ALPHA}) — a standard generalised industry approach (the same method IS 456 Cl 39.6 codifies), not a specific BS 8110 clause, since BS 8110's Table 3.22 method is derived for rectangular sections only. X-X/Y-Y moments are resolved about the given global axes, not necessarily the section's true principal axes.`});
+      }
+
+      /* ---------------- 5. LINK DETAILING ---------------- */
+      const maxBarDia = options.length?Math.max(...options.map(o=>o.dia)):16;
+      const minBarDia = options.length?Math.min(...options.map(o=>o.dia)):16;
+      const linkDiaMin = Math.max(6, maxBarDia/4);
+      const linkSpacingMax = Math.min(12*minBarDia, minDimBB);
+      const linkOk = linkDia>=linkDiaMin;
+      if(!linkOk) flags.push({level:'review', msg:`Link diameter (${linkDia}mm) is below the Cl 3.12.7.2 minimum of max(6mm, ¼ largest bar)=${round(linkDiaMin,1)}mm.`});
+
+      function pureAxialCapacity(AscTotal){ return round((0.4*fcu*Ac + 0.8*fy*AscTotal)/1000,0); }
+      const overallStatus = options.length?options[selectedIndex].status:'FAIL';
+
+      return {
+        standard:'bs8110', inputsEcho:input, shape, vertices,
+        geometry:{ Ac, Cx, Cy, dimX, dimY, heffX, beffY },
+        slenderness:{ betaX,betaY,lex,ley,ratioX:round(ratioX,2),ratioY:round(ratioY,2),isShort,slenderLimit },
+        minEcc:{ eminX:round(eminX,1), eminY:round(eminY,1), eminXMoment:round(eminXMoment,2), eminYMoment:round(eminYMoment,2) },
+        options, selectedIndex, pureAxialCapacity,
+        linkDetailing:{ linkDiaMin:round(linkDiaMin,1), linkSpacingMax:round(linkSpacingMax,0), linkOk },
+        N, flags, steps,
+        status: flags.some(f=>f.level==='fail') ? 'FAIL' : overallStatus
+      };
+    }
+  },
+
+  /* ======================= EUROCODE 2 (EN 1992-1-1) ======================
+     Nominal Curvature method (Cl 5.8.8) — chosen over Nominal Stiffness
+     (Cl 5.8.7) because multiple independent comparative studies found
+     nominal stiffness excessively conservative and recommend nominal
+     curvature for isolated members (this tool's scope). Reuses the exact
+     same polygon/fiber core as BS 8110, with EC2 stress-block (lambda,eta),
+     material factors, and its own slenderness/biaxial method (Cl 5.8.9,
+     which already IS a Bresler-type formula — the code's own, for
+     rectangular and circular; the non-code Bresler fallback is only needed
+     for L/T/cross, same as BS 8110). ========================================= */
+  ec2: {
+    calculate(input){
+      const { shape, cover,linkDia,fck,fyk,alphaCc,phiEf,braced,K1x,K2x,K1y,K2y,Lo,N,
+              momentMode,M1x,M2x,curvatureX,M1y,M2y,curvatureY,MxDirect,MyDirect } = input;
+      const steps=[], flags=[];
+      const gammaC=1.5, gammaS=1.15, Es=200000;
+      const fcd = alphaCc*fck/gammaC;
+      const fyd = fyk/gammaS;
+      const eyd = fyd/Es;
+      let lambdaBlock, etaBlock;
+      if(fck<=50){ lambdaBlock=0.8; etaBlock=1.0; } else { lambdaBlock=0.8-(fck-50)/400; etaBlock=1.0-(fck-50)/200; }
+      const concreteStress = etaBlock*fcd;
+
+      const vertices = shapeVertices(shape, input.dims);
+      const { Ixx, Iyy, Ac, Cx, Cy } = polygonSecondMoments(vertices);
+      const bb = boundingBox(vertices);
+      const dimX=bb.xmax-bb.xmin, dimY=bb.ymax-bb.ymin;
+      const iX = Math.sqrt(Ixx/Ac), iY = Math.sqrt(Iyy/Ac);
+      steps.push({t:'Section properties', f:'Polygon shoelace formulae; radius of gyration i=√(I/A)',
+        r:`Ac=${round(Ac,0)} mm², i(X-X)=${round(iX,1)} mm, i(Y-Y)=${round(iY,1)} mm`, c: shape==='rect' ? 'Exact' : 'General polygon formulae'});
+      steps.push({t:'Design material properties', f:'fcd=αcc·fck/γc; fyd=fyk/γs', r:`fcd=${round(fcd,2)}N/mm² (αcc=${alphaCc}), fyd=${round(fyd,1)}N/mm²`, c:'Cl 3.1.6, 3.2.7'});
+
+      function effLength(K1,K2,l){
+        // K1,K2 used as provided (Cl 5.8.3.2, Annex H) — the "use 0.1, not 0"
+        // guidance is an engineering judgement for idealised-rigid connections,
+        // applied by the user when entering K, not a mathematical floor here.
+        if(braced) return 0.5*l*Math.sqrt((1+K1/(0.45+K1))*(1+K2/(0.45+K2)));
+        return l*Math.max(Math.sqrt(1+10*K1*K2/(K1+K2)), (1+K1/(1+K1))*(1+K2/(1+K2)));
+      }
+      const LoMM=Lo*1000;
+      const l0x = effLength(K1x,K2x,LoMM), l0y = effLength(K1y,K2y,LoMM);
+      steps.push({t:'Effective length', f: braced?"l0=0.5l√[(1+K1/(0.45+K1))(1+K2/(0.45+K2))]":"l0=l·max{√(1+10K1K2/(K1+K2)), (1+K1/(1+K1))(1+K2/(1+K2))}",
+        r:`l0,X-X=${round(l0x/1000,3)}m, l0,Y-Y=${round(l0y/1000,3)}m`, c:'Cl 5.8.3.2, Annex H'});
+      const lambdaX = l0x/iX, lambdaY = l0y/iY;
+      steps.push({t:'Slenderness ratio', f:'λ = l0/i', r:`λ,X-X=${round(lambdaX,1)}, λ,Y-Y=${round(lambdaY,1)}  (λlim is evaluated per trial reinforcement — see options below, since it depends on ω)`, c:'Cl 5.8.3.1'});
+
+      function eiFor(l0){
+        const l0_m = l0/1000;
+        const alphaH = clamp(2/Math.sqrt(l0_m), 2/3, 1.0);
+        return (1/200)*alphaH*1*l0/2; // theta0=1/200, alphaM=1 (isolated member)
+      }
+      const eiX = eiFor(l0x), eiY = eiFor(l0y);
+      steps.push({t:'Geometric imperfection', f:'ei=θi·l0/2; θi=θ0·αh·αm (θ0=1/200, αh=2/√l0[m] clamped [2/3,1])',
+        r:`ei,X-X=${round(eiX,1)}mm, ei,Y-Y=${round(eiY,1)}mm`, c:'Cl 5.2(7)'});
+
+      const e0X = Math.max(dimY/30,20), e0Y = Math.max(dimX/30,20);
+      const e0XMoment = N*e0X/1000, e0YMoment = N*e0Y/1000;
+      steps.push({t:'Minimum eccentricity', f:'e0 = max(dimension/30, 20mm)', r:`e0,x=${round(e0X,1)}mm→${round(e0XMoment,2)}kNm, e0,y=${round(e0Y,1)}mm→${round(e0YMoment,2)}kNm`, c:'Cl 6.1(4)'});
+
+      const minDimBB=Math.min(dimX,dimY), maxDimBB=Math.max(dimX,dimY);
+      if(maxDimBB>4*minDimBB) flags.push({level:'review', msg:'Larger dimension exceeds 4× the smaller — this member should be designed as a wall, not a column (Cl 9.5.2, per Table detailing guidance).'});
+
+      function designMomentsForAxis(AscTotal, dia, isX){
+        const dim = isX?dimY:dimX, l0=isX?l0x:l0y, lambda=isX?lambdaX:lambdaY, ei=isX?eiX:eiY;
+        const M1raw=isX?M1x:M1y, M2v=isX?M2x:M2y, curvature=isX?curvatureX:curvatureY;
+        const e0Moment = isX?e0XMoment:e0YMoment;
+        const M1s = curvature==='double'?-M1raw:M1raw;
+        const M02 = M2v + ei*N/1000, M01 = M1s + ei*N/1000;
+
+        if(momentMode==='direct'){
+          const Mgiven = isX?MxDirect:MyDirect;
+          return { Mdesign: Math.max(Mgiven, e0Moment), M2add:0, governing:'Direct input', lambda, M01:round(M01,2), M02:round(M02,2) };
+        }
+        const omega = AscTotal*fyd/(Ac*fcd);
+        const n = (N*1000)/(Ac*fcd);
+        const A = 1/(1+0.2*phiEf), B = Math.sqrt(Math.max(0,1+2*omega));
+        const rm = M02!==0 ? M01/M02 : 1;
+        const C = clamp(1.7-rm, 0, 2.7);
+        const lambdaLim = n>0 ? 20*A*B*C/Math.sqrt(n) : Infinity;
+        const isShortAxis = lambda<=lambdaLim;
+
+        if(isShortAxis){
+          const Mdesign = Math.max(M02, e0Moment);
+          return { Mdesign, M2add:0, governing: Mdesign===M02?'M02':'N·e0', lambda, lambdaLim:round(lambdaLim,1), slenderLimit:round(lambdaLim,1), isShortAxis, M01:round(M01,2), M02:round(M02,2) };
+        }
+        const d = dim-cover-linkDia-dia/2;
+        const nu=1+omega, nbal=0.4;
+        let Kr=(nu-nbal)!==0?(nu-n)/(nu-nbal):1; Kr=clamp(Kr,0,1);
+        const beta = 0.35+fck/200-lambda/150;
+        const Kphi = Math.max(1, 1+beta*phiEf);
+        const r0inv = eyd/(0.45*d);
+        const rinv = Kr*Kphi*r0inv;
+        const e2 = rinv*(l0*l0)/10; // mm, c=10
+        const M2add = N*(e2/1000);
+        const M0e = Math.max(0.6*M02+0.4*M01, 0.4*M02);
+        const opts = { 'M02':M02, 'M0e+M2':M0e+M2add, 'M01+0.5M2':M01+0.5*M2add, "N·e0":e0Moment };
+        const Mdesign = Math.max(...Object.values(opts));
+        const governing = Object.keys(opts).find(k=>opts[k]===Mdesign);
+        return { Mdesign, M2add, Kr:round(Kr,3), Kphi:round(Kphi,3), e2:round(e2,2), governing, lambda, lambdaLim:round(lambdaLim,1), slenderLimit:round(lambdaLim,1), isShortAxis, M01:round(M01,2), M02:round(M02,2) };
+      }
+
+      function evaluateOption(dia){
+        const area = BAR_AREAS[dia];
+        const minBars = minBarsForShape(shape);
+        let chosen=null;
+        for(let n=minBars;n<=32;n+=(n<10?2:4)){
+          const AscTotal=n*area;
+          const bars = barsAroundPerimeter(vertices, n, cover, linkDia, dia);
+          const distX = designMomentsForAxis(AscTotal, dia, true);
+          const distY = designMomentsForAxis(AscTotal, dia, false);
+
+          const envX = envelopeCapacity(vertices, bars, concreteStress, lambdaBlock, fyd, false);
+          const envY = envelopeCapacity(vertices, bars, concreteStress, lambdaBlock, fyd, true);
+          const McapX0 = envX.capAt(N), McapY0 = envY.capAt(N);
+
+          const NRd = (Ac*fcd + AscTotal*fyd)/1000; // kN
+          const nRatio = NRd>0 ? N/NRd : 1;
+          let aExp, method;
+          if(shape==='circular'){ aExp=2.0; method='ec2-5.8.9-circular'; }
+          else if(shape==='rect'){
+            aExp = nRatio<=0.1?1.0 : nRatio>=0.7?2.0 : 1.0+(nRatio-0.1)*(1.0/0.6);
+            method='ec2-5.8.9';
+          } else { aExp = BRESLER_ALPHA; method='bresler'; }
+          const utilization = Math.pow(distX.Mdesign/(McapX0||1e-6),aExp) + Math.pow(distY.Mdesign/(McapY0||1e-6),aExp);
+          const biax = { method, a:round(aExp,2), McapX0:round(McapX0,2), McapY0:round(McapY0,2), NRd:round(NRd,1), nRatio:round(nRatio,3), utilization };
+
+          const AsMin = Math.max(0.10*N*1000/fyd, 0.002*Ac);
+          const AsMax = 0.04*Ac;
+          const pct = 100*AscTotal/Ac;
+          const issues=[]; let status='PASS';
+          if(AscTotal<AsMin-1e-6){ status='FAIL'; issues.push(`Below As,min = max(0.10·NEd/fyd, 0.002·Ac) = ${round(AsMin,0)}mm² (Cl 9.5.2(2))`); }
+          if(AscTotal>AsMax+1e-6){ status='FAIL'; issues.push(`Exceeds As,max = 0.04·Ac = ${round(AsMax,0)}mm² outside laps (Cl 9.5.2(3))`); }
+          if(N<0){ status='FAIL'; issues.push('Net tension not supported by this module.'); }
+          if(status!=='FAIL'){ if(utilization>1.0) status='FAIL'; else if(utilization>0.97) status='REVIEW'; }
+
+          const result = { dia,n,AscTotal:round(AscTotal,0), pct:round(pct,2), distX,distY,biax,status,issues,
+                            bars, McapX0:round(McapX0,2), McapY0:round(McapY0,2), utilization:round(utilization,3),
+                            curveX:envX.curveA, curveY:envY.curveA };
+          if(status==='PASS'){ chosen=result; break; }
+          if(!chosen || (chosen.status==='FAIL'&&status==='REVIEW')) chosen=result;
+        }
+        return chosen;
+      }
+
+      const options = BAR_DIAMETERS_TRIED.map(dia=>evaluateOption(dia)).filter(o=>o);
+      let selectedIndex = options.findIndex(o=>o.status==='PASS');
+      if(selectedIndex===-1) selectedIndex = options.findIndex(o=>o.status==='REVIEW');
+      if(selectedIndex===-1) selectedIndex = 0;
+
+      if(shape!=='rect' && shape!=='circular'){
+        flags.push({level:'review', msg:`Biaxial check for this ${shape==='L'?'L-shaped':shape==='T'?'T-shaped':'cross-shaped'} section uses the Bresler load-contour method (α=${BRESLER_ALPHA}) as a generalised fallback, since EC2 Cl 5.8.9's exponent rule is defined for rectangular and circular/elliptical sections only. X-X/Y-Y moments are resolved about the given global axes, not necessarily true principal axes.`});
+      }
+      if(phiEf===0) flags.push({level:'review', msg:'Effective creep ratio φef is set to 0 — verify this is intentional (excludes creep amplification of second-order effects, Cl 5.8.4).'});
+
+      const maxBarDia = options.length?Math.max(...options.map(o=>o.dia)):16;
+      const minBarDia = options.length?Math.min(...options.map(o=>o.dia)):16;
+      const linkDiaMin = Math.max(6, maxBarDia/4);
+      const linkSpacingMax = Math.min(20*minBarDia, minDimBB, 400);
+      const linkOk = linkDia>=linkDiaMin;
+      if(!linkOk) flags.push({level:'review', msg:`Link diameter (${linkDia}mm) is below the Cl 9.5.3(1) minimum of max(6mm, ¼ largest bar)=${round(linkDiaMin,1)}mm.`});
+
+      function pureAxialCapacity(AscTotal){ return round((Ac*fcd+AscTotal*fyd)/1000,0); }
+      const overallStatus = options.length?options[selectedIndex].status:'FAIL';
+
+      return {
+        standard:'ec2', inputsEcho:input, shape, vertices,
+        geometry:{ Ac, Cx, Cy, dimX, dimY, heffX:dimY, beffY:dimX },
+        slenderness:{ lambdaX:round(lambdaX,1), lambdaY:round(lambdaY,1) },
+        options, selectedIndex, pureAxialCapacity,
+        linkDetailing:{ linkDiaMin:round(linkDiaMin,1), linkSpacingMax:round(linkSpacingMax,0), linkOk },
+        N, flags, steps,
+        status: flags.some(f=>f.level==='fail') ? 'FAIL' : overallStatus
+      };
+    }
+  },
+
+  /* ======================= ACI 318M (SI units) =============================
+     Unified strength-design method: strength reduction factor phi varies
+     continuously with net tensile strain (compression-controlled 0.65 (tied)
+     -> transition -> tension-controlled 0.90), so the interaction curve
+     itself is built as the phi*Pn/phi*Mn *design* curve (via phiFn passed
+     into the shared fiber core), matching how ACI's own interaction diagrams
+     are actually drawn — not a single constant phi applied afterward.
+     Slenderness: ACI moment-magnification method (Cl 6.6.4, non-sway
+     formulation for braced columns). Biaxial: Bresler reciprocal load
+     method, per industry-standard ACI practice (the code itself does not
+     mandate a single formula, unlike EC2 Cl 5.8.9) — applied here to all
+     five shapes uniformly, unlike the BS 8110/EC2 shape-dependent branching,
+     since the reciprocal method is not rectangle/circle-specific. Tied
+     columns only (spiral confinement deferred to a later phase). ========= */
+  aci: {
+    calculate(input){
+      const { shape, cover,linkDia,fcPrime,fy,braced,psiAx,psiBx,psiAy,psiBy,betaDns,Lo,N,
+              momentMode,M1x,M2x,curvatureX,M1y,M2y,curvatureY,MxDirect,MyDirect } = input;
+      const steps=[], flags=[];
+      const Es=200000;
+      const Ec = 4700*Math.sqrt(fcPrime); // MPa, ACI 318M Cl 19.2.2.1
+      let beta1;
+      if(fcPrime<=28) beta1=0.85; else beta1=clamp(0.85-0.05*(fcPrime-28)/7, 0.65, 0.85);
+      const concreteStress = 0.85*fcPrime; // Whitney block
+      const ecu=0.003;
+      const eyd = fy/Es; // strain at compression-controlled limit
+      function phiTied(strainT){
+        if(strainT<=eyd) return 0.65;
+        if(strainT>=0.005) return 0.90;
+        return 0.65+(strainT-eyd)*(0.25/(0.005-eyd));
+      }
+
+      const vertices = shapeVertices(shape, input.dims);
+      const { Ixx, Iyy, Ac, Cx, Cy } = polygonSecondMoments(vertices);
+      const bb = boundingBox(vertices);
+      const dimX=bb.xmax-bb.xmin, dimY=bb.ymax-bb.ymin;
+      const iX = Math.sqrt(Ixx/Ac), iY = Math.sqrt(Iyy/Ac);
+      steps.push({t:'Section properties & materials', f:"Polygon shoelace formulae; Ec=4700√f'c; beta1 per f'c",
+        r:`Ac=${round(Ac,0)}mm², i(X-X)=${round(iX,1)}mm, i(Y-Y)=${round(iY,1)}mm, Ec=${round(Ec,0)}N/mm², β1=${round(beta1,3)}`, c: shape==='rect'?'Cl 19.2.2.1, Table 22.2.2.4.3':'General polygon formulae; Cl 19.2.2.1, Table 22.2.2.4.3'});
+
+      function kFactor(psiA,psiB){
+        const psiMin=Math.min(psiA,psiB), psiAvg=(psiA+psiB)/2;
+        if(braced){
+          return Math.min(0.7+0.05*(psiA+psiB), 0.85+0.05*psiMin, 1.0);
+        }
+        if(psiAvg<2) return (20-psiAvg)/20*Math.sqrt(1+psiAvg);
+        return 0.9*Math.sqrt(1+psiAvg);
+      }
+      const kx=kFactor(psiAx,psiBx), ky=kFactor(psiAy,psiBy);
+      steps.push({t:'Effective length factor', f: braced ? 'k=min[0.7+0.05(ψA+ψB), 0.85+0.05ψmin, 1.0]' : 'sway equations, Fig R6.2.5.1',
+        r:`kX-X=${round(kx,3)}, kY-Y=${round(ky,3)}`, c:'Cl 6.2.5, Fig R6.2.5.1'});
+
+      const LoMM=Lo*1000;
+      const lamX = kx*LoMM/iX, lamY = ky*LoMM/iY;
+      steps.push({t:'Slenderness ratio', f:'klu/r', r:`X-X: ${round(lamX,1)}, Y-Y: ${round(lamY,1)} (limit evaluated per axis below, depends on M1/M2)`, c:'Cl 6.2.5'});
+
+      const eMinX = 15+0.03*dimY, eMinY = 15+0.03*dimX; // mm, ACI Eq 6.6.4.5.4-style minimum eccentricity
+      const eMinXMoment = N*eMinX/1000, eMinYMoment = N*eMinY/1000;
+      steps.push({t:'Minimum design moment', f:'Mmin = Pu(15+0.03·dimension) mm — applied as a floor for both short and slender columns', r:`X-X: ${round(eMinXMoment,2)}kNm, Y-Y: ${round(eMinYMoment,2)}kNm`, c:'Cl 6.6.4.5.4 (extended here as a general floor, consistent with the other engines\' minimum-eccentricity treatment)'});
+
+      const minDimBB=Math.min(dimX,dimY), maxDimBB=Math.max(dimX,dimY);
+      if(maxDimBB>4*minDimBB) flags.push({level:'review', msg:'Larger dimension exceeds 4× the smaller — consider designing this member as a wall.'});
+
+      function designMomentsForAxis(AscTotal, dia, isX){
+        const dim = isX?dimY:dimX, lam=isX?lamX:lamY, k=isX?kx:ky;
+        const M1raw=isX?M1x:M1y, M2v=isX?M2x:M2y, curvature=isX?curvatureX:curvatureY;
+        const eMinMoment = isX?eMinXMoment:eMinYMoment;
+        const M1s = curvature==='double'?-M1raw:M1raw;
+        const M1M2 = M2v!==0 ? M1s/M2v : 1;
+
+        if(momentMode==='direct'){
+          const Mgiven = isX?MxDirect:MyDirect;
+          return { Mdesign: Math.max(Mgiven, eMinMoment), governing:'Direct input', lam };
+        }
+        const slenderLimit = braced ? clamp(34-12*M1M2,0,40) : 22;
+        const isShortAxis = lam<=slenderLimit;
+        if(isShortAxis){
+          const Mdesign = Math.max(M2v, eMinMoment);
+          return { Mdesign, governing: Mdesign===M2v?'M2':'Mmin', lam, slenderLimit, isShortAxis };
+        }
+        // Moment magnification (non-sway formulation, Cl 6.6.4.5), simplified EI=0.4EcIg/(1+betadns)
+        const Ig = isX? Ixx : Iyy;
+        const Cm = Math.max(0.6+0.4*M1M2, 0.4);
+        const EIsimplified = 0.4*Ec*Ig/(1+betaDns);
+        const klu = k*LoMM;
+        const Pc = Math.PI*Math.PI*EIsimplified/(klu*klu)/1000; // N.mm² / mm² = N, /1000 -> kN
+        if(N>=0.75*Pc){
+          // Cl 6.6.4.5.2: Pu shall not exceed 0.75Pc — beyond this the magnifier
+          // formula is undefined/negative (elastic instability), not just "large".
+          return { Mdesign: Infinity, governing:'UNSTABLE: Pu≥0.75Pc', lam, slenderLimit, isShortAxis, Cm:round(Cm,3), Pc:round(Pc,0), unstable:true };
+        }
+        let delta = Math.max(Cm/(1-N/(0.75*Pc)), 1.0);
+        if(!isFinite(delta) || delta<1) delta=1;
+        const Mc = delta*Math.max(M2v, eMinMoment);
+        return { Mdesign: Mc, governing: delta>1.001?'δns·M2 (magnified)':'M2', lam, slenderLimit, isShortAxis, Cm:round(Cm,3), delta:round(delta,3), Pc:round(Pc,0) };
+      }
+
+      function evaluateOption(dia){
+        const area = BAR_AREAS[dia];
+        const minBars = minBarsForShape(shape);
+        let chosen=null;
+        for(let n=minBars;n<=32;n+=(n<10?2:4)){
+          const AscTotal=n*area;
+          const bars = barsAroundPerimeter(vertices, n, cover, linkDia, dia);
+          const distX = designMomentsForAxis(AscTotal, dia, true);
+          const distY = designMomentsForAxis(AscTotal, dia, false);
+
+          const envX = envelopeCapacity(vertices, bars, concreteStress, beta1, fy, false, ecu, phiTied);
+          const envY = envelopeCapacity(vertices, bars, concreteStress, beta1, fy, true, ecu, phiTied);
+          const McapX0 = envX.capAt(N), McapY0 = envY.capAt(N);
+
+          const Po = 0.85*fcPrime*(Ac-AscTotal) + fy*AscTotal; // N, nominal squash
+          const phiPo = 0.65*Po/1000; // kN, tied
+          const ex = N>0 ? distX.Mdesign/N : Infinity, ey = N>0 ? distY.Mdesign/N : Infinity;
+          const ptX = capacityAtEccentricity(envX.curveA, ex), ptY = capacityAtEccentricity(envY.curveA, ey);
+          const phiPnx = ptX.N, phiPny = ptY.N;
+          let phiPnBiaxial;
+          if(phiPnx>0 && phiPny>0 && phiPo>0){
+            phiPnBiaxial = 1/((1/phiPnx)+(1/phiPny)-(1/phiPo));
+          } else phiPnBiaxial = 0;
+          const utilization = phiPnBiaxial>0 ? N/phiPnBiaxial : Infinity;
+          const lowN = N < 0.1*phiPo;
+          const biax = { method:'bresler-reciprocal', phiPnx:round(phiPnx,1), phiPny:round(phiPny,1), phiPo:round(phiPo,1), phiPnBiaxial:round(phiPnBiaxial,1), utilization, lowN };
+
+          const phiPnMax = 0.65*0.80*Po/1000; // kN, Cl 22.4.2.1, tied
+
+          const rho = AscTotal/Ac;
+          const issues=[]; let status='PASS';
+          if(distX.unstable || distY.unstable) issues.push('Pu exceeds 0.75Pc on one axis — column is beyond the elastic stability limit for the moment-magnification method (Cl 6.6.4.5.2); increase section size or reduce unsupported length.');
+          if(rho<0.01-1e-9){ status='FAIL'; issues.push('Below ρg=1% minimum (Cl 10.6.1.1)'); }
+          if(rho>0.08+1e-9){ status='FAIL'; issues.push('Exceeds ρg=8% maximum (Cl 10.6.1.1)'); }
+          if(N>phiPnMax){ status='FAIL'; issues.push(`Exceeds φPn,max=0.65×0.80×Po=${round(phiPnMax,0)}kN (Cl 22.4.2.1)`); }
+          if(N<0){ status='FAIL'; issues.push('Net tension not supported by this module.'); }
+          if(distX.unstable || distY.unstable) status='FAIL';
+          if(status!=='FAIL'){ if(utilization>1.0) status='FAIL'; else if(utilization>0.97) status='REVIEW'; }
+
+          const pct = 100*rho;
+          const result = { dia,n,AscTotal:round(AscTotal,0), pct:round(pct,2), distX,distY,biax,status,issues,
+                            bars, McapX0:round(McapX0,2), McapY0:round(McapY0,2), utilization:round(utilization,3),
+                            curveX:envX.curveA, curveY:envY.curveA };
+          if(status==='PASS'){ chosen=result; break; }
+          if(!chosen || (chosen.status==='FAIL'&&status==='REVIEW')) chosen=result;
+        }
+        return chosen;
+      }
+
+      const options = BAR_DIAMETERS_TRIED.map(dia=>evaluateOption(dia)).filter(o=>o);
+      let selectedIndex = options.findIndex(o=>o.status==='PASS');
+      if(selectedIndex===-1) selectedIndex = options.findIndex(o=>o.status==='REVIEW');
+      if(selectedIndex===-1) selectedIndex = 0;
+
+      if(options.some(o=>o.biax.lowN)) flags.push({level:'review', msg:'Axial load is below ~0.1×φPo for one or more options — the Bresler reciprocal method is less accurate in this low-axial-load range; a direct biaxial check against the full interaction surface would be more reliable there.'});
+      if(betaDns>0) flags.push({level:'review', msg:`Sustained-load ratio βdns=${betaDns} assumed for the EI stiffness reduction — confirm against actual sustained/total load ratio for this load combination (Cl 6.6.4.4.4).`});
+
+      const maxBarDia = options.length?Math.max(...options.map(o=>o.dia)):16;
+      const linkDiaMin = maxBarDia<=32?10:13; // Cl 25.7.2.2
+      const linkSpacingMax = Math.min(16*maxBarDia, 48*linkDiaMin, minDimBB);
+      const linkOk = linkDia>=linkDiaMin;
+      if(!linkOk) flags.push({level:'review', msg:`Tie diameter (${linkDia}mm) is below the Cl 25.7.2.2 minimum of ${linkDiaMin}mm for this bar size.`});
+
+      function pureAxialCapacity(AscTotal){ return round((0.65*0.80*(0.85*fcPrime*(Ac-AscTotal)+fy*AscTotal))/1000,0); }
+      const overallStatus = options.length?options[selectedIndex].status:'FAIL';
+
+      return {
+        standard:'aci', inputsEcho:input, shape, vertices,
+        geometry:{ Ac, Cx, Cy, dimX, dimY, heffX:dimY, beffY:dimX },
+        slenderness:{ lambdaX:round(lamX,1), lambdaY:round(lamY,1) },
+        options, selectedIndex, pureAxialCapacity,
+        linkDetailing:{ linkDiaMin:round(linkDiaMin,1), linkSpacingMax:round(linkSpacingMax,0), linkOk },
+        N, flags, steps,
+        status: flags.some(f=>f.level==='fail') ? 'FAIL' : overallStatus
+      };
+    }
+  },
+
+  /* ======================= IS 456:2000 =====================================
+     Additional Moment Method (Cl 39.7). Historically close to BS 8110 (same
+     lineage, CP 110) — reuses the same Table 3.19/3.20-equivalent effective
+     length lookup (IS 456 Table 28 is materially the same table; flagged as
+     an assumed equivalence, not independently re-verified against Table 28
+     itself) and the same 0.87fy steel design stress. Concrete: IS 456's
+     actual stress block (Cl 38.1) is parabolic-rectangular with total force
+     0.36·fck·b·xu acting at 0.42xu from the compression face — represented
+     here as an EXACT equivalent rectangular block (same total force, same
+     centroid, at every neutral-axis depth): concreteStress=(0.36/0.84)fck,
+     blockFactor=0.84, since 0.84/2=0.42. This is a force/centroid-matched
+     substitution, not an approximation of magnitude — flagged in the calc
+     sheet regardless, for transparency. Slenderness reduction factor k
+     (Cl 39.7.1.1) is conservatively NOT applied (k=1, i.e. no reduction) —
+     it is optional and safe to omit; the balanced load Pb it needs lacks a
+     single universally-cited closed form, so applying an unverified formula
+     would be worse than the conservative default. Biaxial (Cl 39.6) is the
+     code's own Bresler-contour formula, general enough to apply to all five
+     shapes uniformly — no shape branching needed, unlike BS 8110/EC2. Tied
+     columns only. ========================================================= */
+  is456: {
+    calculate(input){
+      const { shape, cover,linkDia,fck,fy,fyv,braced,topX,botX,topY,botY,Lo,N,
+              momentMode,M1x,M2x,curvatureX,M1y,M2y,curvatureY,MxDirect,MyDirect } = input;
+      const steps=[], flags=[];
+      const concreteStress = (0.36/0.84)*fck, blockFactor=0.84, steelDesignStress=0.87*fy, ecu=0.0035;
+
+      const vertices = shapeVertices(shape, input.dims);
+      const { Ixx, Iyy, Ac, Cx, Cy } = polygonSecondMoments(vertices);
+      const bb = boundingBox(vertices);
+      const dimX=bb.xmax-bb.xmin, dimY=bb.ymax-bb.ymin;
+      let heffX, beffY;
+      if(shape==='rect'){ heffX=input.dims.h; beffY=input.dims.b; }
+      else { heffX=Math.sqrt(12*Ixx/Ac); beffY=Math.sqrt(12*Iyy/Ac); }
+      steps.push({t:'Section properties', f:'Polygon shoelace formulae; equivalent rectangular stress block force/centroid-matched to IS 456\'s parabolic-rectangular block (0.36fck·b·xu at 0.42xu)',
+        r:`Ac=${round(Ac,0)}mm², heff,X-X=${round(heffX,1)}mm, beff,Y-Y=${round(beffY,1)}mm`, c:'Cl 38.1, Fig 21'+(shape==='rect'?'':' (heff/beff generalised via radius of gyration)')});
+
+      const betaTable = braced?BETA_BRACED:BETA_UNBRACED;
+      const betaX = betaTable[`${topX}-${botX}`], betaY = betaTable[`${topY}-${botY}`];
+      if(betaX==null || betaY==null) flags.push({level:'fail', msg:`The selected end-condition combination is not defined for one of the axes.`});
+      flags.push({level:'review', msg:'Effective-length factors are taken from the same table used for BS 8110 Table 3.19/3.20 — IS 456 Table 28 is materially the same (shared CP 110 lineage) but has not been independently re-verified value-by-value against Table 28 itself.'});
+      const LoMM=Lo*1000;
+      const lex=(betaX||0)*LoMM, ley=(betaY||0)*LoMM;
+      const ratioX = heffX>0?lex/heffX:0, ratioY = beffY>0?ley/beffY:0;
+      const isShort = ratioX<=12 && ratioY<=12;
+      steps.push({t:'Effective length & slenderness', f:'le=β·Lo; short if lex/D≤12 and ley/b≤12 (both braced and unbraced use this same limit)',
+        r:`lex=${round(lex/1000,3)}m, ley=${round(ley/1000,3)}m; lex/D=${round(ratioX,2)}, ley/b=${round(ratioY,2)} → <b>${isShort?'SHORT':'SLENDER'}</b>`, c:'Cl 25.1.2, 25.2, Table 28'});
+
+      const eminX = Math.max(LoMM/500+dimY/30, 20), eminY = Math.max(LoMM/500+dimX/30, 20);
+      const eminXMoment = N*eminX/1000, eminYMoment = N*eminY/1000;
+      steps.push({t:'Minimum eccentricity', f:'emin = max(L/500 + D/30, 20mm)', r:`emin,x=${round(eminX,1)}mm→${round(eminXMoment,2)}kNm, emin,y=${round(eminY,1)}mm→${round(eminYMoment,2)}kNm`, c:'Cl 25.4'});
+
+      const minDimBB=Math.min(dimX,dimY), maxDimBB=Math.max(dimX,dimY);
+      if(maxDimBB>4*minDimBB) flags.push({level:'review', msg:'Larger dimension exceeds 4× the smaller — consider designing this member as a wall.'});
+
+      function designMomentsForAxis(isX){
+        const dim = isX?heffX:beffY, le=isX?lex:ley;
+        const M2v=isX?M2x:M2y, eminMoment=isX?eminXMoment:eminYMoment;
+        if(momentMode==='direct'){
+          const Mgiven = isX?MxDirect:MyDirect;
+          return { Mdesign: Math.max(Mgiven, eminMoment), Madd:0, governing:'Direct input' };
+        }
+        const Minitial = Math.max(M2v, eminMoment);
+        if(isShort) return { Mdesign: Minitial, Madd:0, governing: Minitial===M2v?'M2':'N·emin' };
+        const ratio = le/dim;
+        const Madd = N*(dim/1000)/2000*ratio*ratio; // Pu[kN]*dim[m]/2000*(le/dim)^2
+        return { Mdesign: Minitial+Madd, Madd, governing:'Minitial+Madd (k=1, no reduction applied)' };
+      }
+      const distX = designMomentsForAxis(true), distY = designMomentsForAxis(false);
+
+      function evaluateOption(dia){
+        const area = BAR_AREAS[dia];
+        const minBars = minBarsForShape(shape);
+        let chosen=null;
+        for(let n=minBars;n<=32;n+=(n<10?2:4)){
+          const AscTotal=n*area;
+          const bars = barsAroundPerimeter(vertices, n, cover, linkDia, dia);
+          const envX = envelopeCapacity(vertices, bars, concreteStress, blockFactor, steelDesignStress, false, ecu);
+          const envY = envelopeCapacity(vertices, bars, concreteStress, blockFactor, steelDesignStress, true, ecu);
+          const McapX0 = envX.capAt(N), McapY0 = envY.capAt(N);
+
+          const Puz = (0.45*fck*Ac + 0.75*fy*AscTotal)/1000; // kN, Cl 39.6
+          const ratioPuz = Puz>0 ? N/Puz : 1;
+          const alphaN = clamp(1 + (ratioPuz-0.2)/0.6, 1.0, 2.0);
+          const utilization = Math.pow(distX.Mdesign/(McapX0||1e-6), alphaN) + Math.pow(distY.Mdesign/(McapY0||1e-6), alphaN);
+          const biax = { method:'is456-39.6', alphaN:round(alphaN,3), Puz:round(Puz,1), ratioPuz:round(ratioPuz,3), McapX0:round(McapX0,2), McapY0:round(McapY0,2), utilization };
+
+          const pct = 100*AscTotal/Ac;
+          const issues=[]; let status='PASS';
+          if(pct<0.8-1e-6){ status='FAIL'; issues.push('Below 0.8% minimum steel (Cl 26.5.3.1)'); }
+          if(pct>6+1e-6){ status='FAIL'; issues.push('Exceeds 6% maximum steel (Cl 26.5.3.1)'); }
+          if(N<0){ status='FAIL'; issues.push('Net tension not supported by this module.'); }
+          if(status!=='FAIL'){ if(utilization>1.0) status='FAIL'; else if(utilization>0.97) status='REVIEW'; }
+
+          const result = { dia,n,AscTotal:round(AscTotal,0), pct:round(pct,2), distX,distY,biax,status,issues,
+                            bars, McapX0:round(McapX0,2), McapY0:round(McapY0,2), utilization:round(utilization,3),
+                            curveX:envX.curveA, curveY:envY.curveA };
+          if(status==='PASS'){ chosen=result; break; }
+          if(!chosen || (chosen.status==='FAIL'&&status==='REVIEW')) chosen=result;
+        }
+        return chosen;
+      }
+
+      const options = BAR_DIAMETERS_TRIED.map(dia=>evaluateOption(dia)).filter(o=>o);
+      let selectedIndex = options.findIndex(o=>o.status==='PASS');
+      if(selectedIndex===-1) selectedIndex = options.findIndex(o=>o.status==='REVIEW');
+      if(selectedIndex===-1) selectedIndex = 0;
+
+      const maxBarDia = options.length?Math.max(...options.map(o=>o.dia)):16;
+      const minBarDia = options.length?Math.min(...options.map(o=>o.dia)):16;
+      const tieDiaMin = Math.max(5, maxBarDia/4);
+      const tieSpacingMax = Math.min(minDimBB, 16*minBarDia, 300);
+      const linkOk = linkDia>=tieDiaMin;
+      if(!linkOk) flags.push({level:'review', msg:`Tie diameter (${linkDia}mm) is below the Cl 26.5.3.2 minimum of max(5mm, ¼ largest bar)=${round(tieDiaMin,1)}mm.`});
+
+      function pureAxialCapacity(AscTotal){ return round((0.4*fck*Ac + 0.67*fy*AscTotal)/1000,0); }
+      const overallStatus = options.length?options[selectedIndex].status:'FAIL';
+
+      return {
+        standard:'is456', inputsEcho:input, shape, vertices,
+        geometry:{ Ac, Cx, Cy, dimX, dimY, heffX, beffY },
+        slenderness:{ ratioX:round(ratioX,2), ratioY:round(ratioY,2), isShort, slenderLimit:12 },
+        options, selectedIndex, pureAxialCapacity,
+        linkDetailing:{ linkDiaMin:round(tieDiaMin,1), linkSpacingMax:round(tieSpacingMax,0), linkOk },
+        N, flags, steps,
+        status: flags.some(f=>f.level==='fail') ? 'FAIL' : overallStatus
+      };
+    }
+  }
+};
+
+/* =========================================================================
+   UI WIRING
+   ========================================================================= */
+const standardEl = document.getElementById('standard');
+standardEl.addEventListener('change', ()=>{
+  const std = standardEl.value;
+  document.getElementById('mat-bs8110').style.display = std==='bs8110'?'block':'none';
+  document.getElementById('mat-ec2').style.display = std==='ec2'?'block':'none';
+  document.getElementById('mat-aci').style.display = std==='aci'?'block':'none';
+  document.getElementById('mat-is456').style.display = std==='is456'?'block':'none';
+  document.getElementById('brace-bs8110').style.display = (std==='bs8110'||std==='is456')?'block':'none';
+  document.getElementById('brace-ec2').style.display = std==='ec2'?'block':'none';
+  document.getElementById('brace-aci').style.display = std==='aci'?'block':'none';
+});
+
+let currentShape='rect';
+document.querySelectorAll('.shape-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.shape-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentShape = tab.dataset.shape;
+    ['rect','circular','L','T','cross'].forEach(s=> document.getElementById('dims-'+s).style.display = s===currentShape?'block':'none');
+  });
+});
+
+const momentModeEl = document.getElementById('momentMode');
+momentModeEl.addEventListener('change', ()=>{
+  const direct = momentModeEl.value==='direct';
+  document.getElementById('frameMomentFields').style.display = direct?'none':'block';
+  document.getElementById('directMomentFields').style.display = direct?'block':'none';
+});
+
+function getDims(shape){
+  if(shape==='rect') return { b:parseFloat(document.getElementById('rb').value), h:parseFloat(document.getElementById('rh').value) };
+  if(shape==='circular') return { D:parseFloat(document.getElementById('cD').value) };
+  if(shape==='L') return { B:parseFloat(document.getElementById('lB').value), H:parseFloat(document.getElementById('lH').value), t1:parseFloat(document.getElementById('lT1').value), t2:parseFloat(document.getElementById('lT2').value) };
+  if(shape==='T') return { B:parseFloat(document.getElementById('tB').value), H:parseFloat(document.getElementById('tH').value), tf:parseFloat(document.getElementById('tTf').value), tw:parseFloat(document.getElementById('tTw').value) };
+  if(shape==='cross') return { B:parseFloat(document.getElementById('xB').value), H:parseFloat(document.getElementById('xH').value), tx:parseFloat(document.getElementById('xTx').value), ty:parseFloat(document.getElementById('xTy').value) };
+}
+
+function getInputs(){
+  const standard = standardEl.value;
+  const base = {
+    standard, shape: currentShape, dims: getDims(currentShape),
+    cover: parseFloat(document.getElementById('cover').value),
+    linkDia: parseFloat(document.getElementById('linkDia').value),
+    braced: document.getElementById('braced').value==='braced',
+    Lo: parseFloat(document.getElementById('Lo').value),
+    N: parseFloat(document.getElementById('N').value),
+    momentMode: momentModeEl.value,
+    M1x: parseFloat(document.getElementById('M1x').value)||0, M2x: parseFloat(document.getElementById('M2x').value)||0, curvatureX: document.getElementById('curvatureX').value,
+    M1y: parseFloat(document.getElementById('M1y').value)||0, M2y: parseFloat(document.getElementById('M2y').value)||0, curvatureY: document.getElementById('curvatureY').value,
+    MxDirect: parseFloat(document.getElementById('MxDirect').value)||0, MyDirect: parseFloat(document.getElementById('MyDirect').value)||0
+  };
+  if(standard==='bs8110'){
+    return Object.assign(base, {
+      fcu: parseFloat(document.getElementById('fcu').value), fy: parseFloat(document.getElementById('fy').value), fyv: parseFloat(document.getElementById('fyv').value),
+      topX: document.getElementById('topX').value, botX: document.getElementById('botX').value,
+      topY: document.getElementById('topY').value, botY: document.getElementById('botY').value
+    });
+  }
+  if(standard==='is456'){
+    return Object.assign(base, {
+      fck: parseFloat(document.getElementById('fckIs').value), fy: parseFloat(document.getElementById('fyIs').value), fyv: parseFloat(document.getElementById('fyvIs').value),
+      topX: document.getElementById('topX').value, botX: document.getElementById('botX').value,
+      topY: document.getElementById('topY').value, botY: document.getElementById('botY').value
+    });
+  }
+  if(standard==='ec2'){
+    return Object.assign(base, {
+      fck: parseFloat(document.getElementById('fck').value), fyk: parseFloat(document.getElementById('fyk').value),
+      alphaCc: parseFloat(document.getElementById('alphaCc').value), phiEf: parseFloat(document.getElementById('phiEf').value)||0,
+      K1x: parseFloat(document.getElementById('K1x').value), K2x: parseFloat(document.getElementById('K2x').value),
+      K1y: parseFloat(document.getElementById('K1y').value), K2y: parseFloat(document.getElementById('K2y').value)
+    });
+  }
+  return Object.assign(base, {
+    fcPrime: parseFloat(document.getElementById('fcPrime').value), fy: parseFloat(document.getElementById('fyAci').value),
+    betaDns: parseFloat(document.getElementById('betaDns').value)||0,
+    psiAx: parseFloat(document.getElementById('psiAx').value), psiBx: parseFloat(document.getElementById('psiBx').value),
+    psiAy: parseFloat(document.getElementById('psiAy').value), psiBy: parseFloat(document.getElementById('psiBy').value)
+  });
+}
+
+function validateInputs(input){
+  const e=[];
+  const d = input.dims;
+  if(input.shape==='rect'){ if(!(d.b>0)) e.push('Width b must be positive.'); if(!(d.h>0)) e.push('Depth h must be positive.'); }
+  if(input.shape==='circular'){ if(!(d.D>0)) e.push('Diameter D must be positive.'); }
+  if(input.shape==='L'){ ['B','H','t1','t2'].forEach(k=>{ if(!(d[k]>0)) e.push(`L-shape: ${k} must be positive.`); });
+    if(d.t1>0 && d.B>0 && d.t1>=d.B) e.push('L-shape: t1 must be less than overall width B.');
+    if(d.t2>0 && d.H>0 && d.t2>=d.H) e.push('L-shape: t2 must be less than overall depth H.'); }
+  if(input.shape==='T'){ ['B','H','tf','tw'].forEach(k=>{ if(!(d[k]>0)) e.push(`T-shape: ${k} must be positive.`); });
+    if(d.tw>0 && d.B>0 && d.tw>=d.B) e.push('T-shape: web thickness must be less than flange width B.');
+    if(d.tf>0 && d.H>0 && d.tf>=d.H) e.push('T-shape: flange thickness must be less than overall depth H.'); }
+  if(input.shape==='cross'){ ['B','H','tx','ty'].forEach(k=>{ if(!(d[k]>0)) e.push(`Cross-shape: ${k} must be positive.`); });
+    if(d.tx>0 && d.B>0 && d.tx>=d.B) e.push('Cross-shape: tx must be less than overall width B.');
+    if(d.ty>0 && d.H>0 && d.ty>=d.H) e.push('Cross-shape: ty must be less than overall depth H.'); }
+  if(!(input.cover>0)) e.push('Nominal cover must be positive.');
+  if(!(input.Lo>0)) e.push('Clear height Lo must be positive.');
+  if(!(input.N>=0)) e.push('Axial load N must be zero or positive (tension not supported).');
+  if(input.standard==='bs8110'){
+    if(!(input.fcu>0)) e.push('fcu must be positive.');
+    if(!(input.fy>0)) e.push('fy must be positive.');
+    if(!(input.fyv>0)) e.push('fyv must be positive.');
+  } else if(input.standard==='is456'){
+    if(!(input.fck>0)) e.push('fck must be positive.');
+    if(!(input.fy>0)) e.push('fy must be positive.');
+    if(!(input.fyv>0)) e.push('fyv must be positive.');
+  } else if(input.standard==='ec2'){
+    if(!(input.fck>0)) e.push('fck must be positive.');
+    if(!(input.fyk>0)) e.push('fyk must be positive.');
+    if(!(input.alphaCc>0)) e.push('αcc must be positive.');
+    if(!(input.phiEf>=0)) e.push('Effective creep ratio φef must be zero or positive.');
+    [['K1x',input.K1x],['K2x',input.K2x],['K1y',input.K1y],['K2y',input.K2y]].forEach(([k,v])=>{ if(!(v>0)) e.push(`${k} must be a positive number (use 0.1 for a near-rigid connection).`); });
+  } else {
+    if(!(input.fcPrime>0)) e.push("f'c must be positive.");
+    if(!(input.fy>0)) e.push('fy must be positive.');
+    if(!(input.betaDns>=0)) e.push('βdns must be zero or positive.');
+    [['ψAx',input.psiAx],['ψBx',input.psiBx],['ψAy',input.psiAy],['ψBy',input.psiBy]].forEach(([k,v])=>{ if(!(v>0)) e.push(`${k} must be a positive number.`); });
+  }
+  if(input.momentMode==='frame'){
+    if(input.M2x<0) e.push('M2x cannot be negative.'); if(input.M2y<0) e.push('M2y cannot be negative.');
+    if(Math.abs(input.M1x)>input.M2x+1e-6) e.push('M1x must not exceed M2x in magnitude.');
+    if(Math.abs(input.M1y)>input.M2y+1e-6) e.push('M1y must not exceed M2y in magnitude.');
+  } else if(input.MxDirect<0 || input.MyDirect<0) e.push('Direct design moments cannot be negative.');
+  return e;
+}
+
+function pill(status){ const cls = status==='PASS'?'pass':status==='FAIL'?'fail':'review'; return `<span class="pill ${cls}">${status}</span>`; }
+
+/* ---------------- Generic cross-section SVG (any polygon + bar coordinates) ---------------- */
+function drawSectionSVG(vertices, bars){
+  const xs=vertices.map(p=>p.x), ys=vertices.map(p=>p.y);
+  const xmin=Math.min(...xs), xmax=Math.max(...xs), ymin=Math.min(...ys), ymax=Math.max(...ys);
+  const w=xmax-xmin, ht=ymax-ymin;
+  const scale = Math.min(220/w, 240/ht);
+  const ox=25, oy=15;
+  const px = x => ox+(x-xmin)*scale, py = y => oy+(y-ymin)*scale;
+  const path = vertices.map((p,i)=> `${i===0?'M':'L'} ${round(px(p.x),1)} ${round(py(p.y),1)}`).join(' ')+' Z';
+  const barR = bars.length ? (bars[0].dia/2)*scale : 4;
+  const barsSvg = bars.map(b=> `<circle cx="${round(px(b.x),1)}" cy="${round(py(b.y),1)}" r="${(b.dia/2)*scale}" fill="#1E4E8C" stroke="#12315C" stroke-width="1"/>`).join('');
+  return `<svg width="${w*scale+50}" height="${ht*scale+40}" viewBox="0 0 ${w*scale+50} ${ht*scale+40}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${path}" fill="#F6F7F9" stroke="#1B2430" stroke-width="1.6"/>
+    ${barsSvg}
+    <text x="${ox+(w*scale)/2}" y="${oy+ht*scale+16}" text-anchor="middle" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="#4B5563">${bars.length}${bars[0]?'T'+bars[0].dia:''}</text>
+  </svg>`;
+}
+
+/* ---------------- N-M interaction diagram SVG for one axis ---------------- */
+function drawInteractionDiagram(curve, Mdesign, N, status, axisLabel){
+  const maxM = Math.max(...curve.map(p=>p.M), Mdesign)*1.1 || 1;
+  const maxN = Math.max(...curve.map(p=>p.N))*1.05, minN = Math.min(...curve.map(p=>p.N),0);
+  const W=240,H=220,padL=44,padR=10,padT=10,padB=28,plotW=W-padL-padR,plotH=H-padT-padB;
+  const xOf = M => padL+(M/maxM)*plotW, yOf = Nn => padT+plotH-((Nn-minN)/(maxN-minN))*plotH;
+  const path = curve.map((p,i)=> `${i===0?'M':'L'} ${round(xOf(p.M),1)} ${round(yOf(p.N),1)}`).join(' ');
+  const ptColor = status==='PASS'?'#1E7A46':status==='REVIEW'?'#A8660F':'#B23A2E';
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="#DADEE3"/>
+    <line x1="${padL}" y1="${yOf(0)}" x2="${padL+plotW}" y2="${yOf(0)}" stroke="#DADEE3"/>
+    <path d="${path}" fill="none" stroke="#1E4E8C" stroke-width="2"/>
+    <circle cx="${round(xOf(Mdesign),1)}" cy="${round(yOf(N),1)}" r="4" fill="${ptColor}" stroke="#12315C" stroke-width="1"/>
+    <text x="${padL+plotW/2}" y="${H-6}" text-anchor="middle" font-size="9.5" font-family="IBM Plex Mono, monospace" fill="#4B5563">M ${axisLabel} (kNm)</text>
+    <text x="10" y="${padT+plotH/2}" text-anchor="middle" font-size="9.5" font-family="IBM Plex Mono, monospace" fill="#4B5563" transform="rotate(-90 10 ${padT+plotH/2})">N (kN)</text>
+  </svg>`;
+}
+
+let currentInput=null, currentResult=null, currentOptIndex=0;
+function selectOption(i){ currentOptIndex=i; renderAll(currentInput, currentResult); }
+
+function renderAll(input, result){
+  currentInput=input; currentResult=result;
+  const body = document.getElementById('resultsBody');
+  if(!result.options.length){
+    body.innerHTML = `<div class="error-panel"><div class="title">Cannot complete design</div><ul>${result.flags.filter(f=>f.level==='fail').map(f=>`<li>${f.msg}</li>`).join('')}</ul></div>`;
+    return;
+  }
+  const opt = result.options[currentOptIndex] || result.options[0];
+  const statusCls = opt.status==='PASS'?'pass':opt.status==='FAIL'?'fail':'review';
+  const isEc2 = result.standard==='ec2';
+  const isAci = result.standard==='aci';
+  const isIs456 = result.standard==='is456';
+  const standardLabel = isEc2 ? 'Eurocode 2 (EN 1992-1-1)' : isAci ? 'ACI 318M (SI)' : isIs456 ? 'IS 456:2000' : 'BS 8110-1:1997';
+  let html='';
+  html += `<div class="status-banner ${statusCls}"><span>Column Design — ${opt.status}</span><span class="tag">${standardLabel} · ${result.shape}</span></div>`;
+
+  const blocking = result.flags.filter(f=>f.level==='fail');
+  const reviews = result.flags.filter(f=>f.level==='review');
+  if(blocking.length) html += `<div class="error-panel"><div class="title">Blocking issues</div><ul>${blocking.map(f=>`<li>${f.msg}</li>`).join('')}</ul></div>`;
+  reviews.forEach(f=> html += `<div class="note">⚠ ${f.msg}</div>`);
+
+  const classificationLabel = (isEc2||isAci)
+    ? ((opt.distX.isShortAxis!==false && opt.distY.isShortAxis!==false) ? 'Short' : 'Slender')
+    : (result.slenderness.isShort?'Short':'Slender');
+  const biaxLabelMap = { table322:'Table 3.22', resultant:'Resultant (axisymmetric)', bresler:'Bresler contour',
+    'ec2-5.8.9':'EC2 Cl 5.8.9', 'ec2-5.8.9-circular':'EC2 Cl 5.8.9 (a=2)', 'bresler-reciprocal':'Bresler reciprocal', 'is456-39.6':'IS 456 Cl 39.6' };
+  html += `<div class="actions-grid">
+    <div class="action-card"><div class="k">Axial load N</div><div class="v">${round(result.N,0)} kN</div></div>
+    <div class="action-card"><div class="k">Classification</div><div class="v">${classificationLabel}</div></div>
+    <div class="action-card"><div class="k">Biaxial method</div><div class="v" style="font-size:13px;">${biaxLabelMap[opt.biax.method]||opt.biax.method}</div></div>
+    <div class="action-card"><div class="k">Utilization</div><div class="v">${(opt.utilization*100).toFixed(0)}%</div></div>
+  </div>`;
+
+  const slendernessRows = (isEc2||isAci)
+    ? `<tr><td>Slenderness X-X (${isAci?'klu/r':'λ'})</td><td class="num">${result.slenderness.lambdaX}</td><td class="num">limit=${opt.distX.slenderLimit!==undefined?round(opt.distX.slenderLimit,1):'—'}</td><td>${pill(opt.distX.isShortAxis!==false?'PASS':'REVIEW')}</td></tr>
+    <tr><td>Slenderness Y-Y (${isAci?'klu/r':'λ'})</td><td class="num">${result.slenderness.lambdaY}</td><td class="num">limit=${opt.distY.slenderLimit!==undefined?round(opt.distY.slenderLimit,1):'—'}</td><td>${pill(opt.distY.isShortAxis!==false?'PASS':'REVIEW')}</td></tr>`
+    : `<tr><td>Slenderness X-X</td><td class="num">${result.slenderness.ratioX}</td><td class="num">≤ ${result.slenderness.slenderLimit}</td><td>${pill(result.slenderness.ratioX<=result.slenderness.slenderLimit?'PASS':'REVIEW')}</td></tr>
+    <tr><td>Slenderness Y-Y</td><td class="num">${result.slenderness.ratioY}</td><td class="num">≤ ${result.slenderness.slenderLimit}</td><td>${pill(result.slenderness.ratioY<=result.slenderness.slenderLimit?'PASS':'REVIEW')}</td></tr>`;
+  const steelLimitText = isEc2 ? 'As,min=max(0.10NEd/fyd,0.002Ac); As,max=0.04Ac' : isAci ? 'ρg = 1% – 8%' : isIs456 ? '0.8% – 6.0%' : '0.4% – 6.0%';
+  const linkSpacingBasis = isEc2 ? '20×smallest bar, min dimension, or 400mm' : isAci ? '16×bar, 48×tie, or min dimension' : isIs456 ? 'min dimension, 16×smallest bar, or 300mm' : '12×smallest bar, or min overall dimension';
+
+  html += `<table class="check-table"><thead><tr><th>Check</th><th>Value</th><th>Limit / Basis</th><th>Status</th></tr></thead><tbody>
+    ${slendernessRows}
+    <tr><td>Design moment X-X</td><td class="num">${round(opt.distX.Mdesign,2)} kNm</td><td>governed by ${opt.distX.governing}</td><td>—</td></tr>
+    <tr><td>Design moment Y-Y</td><td class="num">${round(opt.distY.Mdesign,2)} kNm</td><td>governed by ${opt.distY.governing}</td><td>—</td></tr>
+    <tr><td>Longitudinal steel</td><td class="num">${opt.pct}% (${opt.AscTotal} mm²)</td><td class="num">${steelLimitText}</td><td>${pill(opt.issues.some(i=>i.includes('steel')||i.includes('As,')||i.includes('ρg'))?'FAIL':'PASS')}</td></tr>
+    <tr><td>Combined N-M check</td><td class="num">utilization ${opt.utilization}</td><td>≤ 1.00</td><td>${pill(opt.status)}</td></tr>
+    <tr><td>Link diameter</td><td class="num">${input.linkDia} mm</td><td class="num">≥ ${result.linkDetailing.linkDiaMin} mm</td><td>${pill(result.linkDetailing.linkOk?'PASS':'REVIEW')}</td></tr>
+    <tr><td>Link spacing (max)</td><td class="num">≤ ${result.linkDetailing.linkSpacingMax} mm</td><td>${linkSpacingBasis}</td><td>—</td></tr>
+  </tbody></table>`;
+
+  html += `<div class="panel-hdr" style="margin:0 -16px 12px -16px;">Longitudinal Reinforcement Options</div><div class="bar-options">`;
+  result.options.forEach((o,i)=>{
+    html += `<div class="bar-opt ${i===currentOptIndex?'selected':''}" onclick="selectOption(${i})">
+      <div class="title">${o.n}T${o.dia} ${pill(o.status)}</div>
+      <div class="sub">Asc = <b>${o.AscTotal} mm²</b> (${o.pct}%)</div>
+      <div class="sub">Util. <b>${(o.utilization*100).toFixed(0)}%</b></div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="section-wrap">
+    <div class="svg-box">${drawSectionSVG(result.vertices, opt.bars)}</div>
+    <div class="diagram-box"><div class="lbl">Interaction — X-X</div>${drawInteractionDiagram(opt.curveX, opt.distX.Mdesign, result.N, opt.status, 'X-X')}</div>
+    <div class="diagram-box"><div class="lbl">Interaction — Y-Y</div>${drawInteractionDiagram(opt.curveY, opt.distY.Mdesign, result.N, opt.status, 'Y-Y')}</div>
+  </div>`;
+
+  const optSteps = [];
+  function pushAxisSteps(dist, axisLabel){
+    if(input.momentMode==='direct'){
+      optSteps.push({t:`${axisLabel} design moment (direct input)`, f:`Mdesign = max(M given, N·${isEc2?'e0':isAci?'emin':'emin'})`, r:`Mdesign = ${round(dist.Mdesign,2)} kNm`, c: isEc2?'User-supplied, Cl 6.1(4) floor':isAci?'User-supplied, minimum-moment floor':'User-supplied, Cl 3.8.2.4 floor'});
+      return;
+    }
+    if(isAci){
+      optSteps.push({t:`${axisLabel} slenderness & minimum moment`, f:'klu/r vs limit; Mmin=Pu(15+0.03·dim)', r:`klu/r=${round(dist.lam,1)}, limit=${round(dist.slenderLimit,1)} → <b>${dist.isShortAxis?'SHORT':'SLENDER'}</b>`, c:'Cl 6.2.5, 6.6.4.5.4'});
+      if(dist.isShortAxis){
+        optSteps.push({t:`${axisLabel} design moment (short)`, f:'Mu = max(M2, Mmin)', r:`Mdesign = ${round(dist.Mdesign,2)} kNm (${dist.governing})`, c:'Cl 6.6.4.5.4'});
+      } else if(dist.unstable){
+        optSteps.push({t:`${axisLabel} moment magnification`, f:'Pu vs 0.75Pc', r:`Pc=${dist.Pc}kN — Pu exceeds 0.75Pc: elastic instability, this axis fails outright`, c:'Cl 6.6.4.5.2'});
+      } else {
+        optSteps.push({t:`${axisLabel} moment magnification`, f:'δns=max[Cm/(1-Pu/0.75Pc), 1.0]; Cm=max(0.6+0.4M1/M2,0.4); EI=0.4EcIg/(1+βdns) (simplified form — not the more accurate EI using actual Ise)',
+          r:`Cm=${dist.Cm}, Pc=${dist.Pc}kN, δns=${dist.delta} → Mdesign=${round(dist.Mdesign,2)}kNm (${dist.governing})`, c:'Cl 6.6.4.4.4(b), 6.6.4.5.1'});
+      }
+      return;
+    }
+    if(isIs456){
+      if(result.slenderness.isShort){
+        optSteps.push({t:`${axisLabel} design moment (short)`, f:'Mdesign = max(M2, N·emin)', r:`Mdesign = ${round(dist.Mdesign,2)} kNm (${dist.governing})`, c:'Cl 39.7'});
+      } else {
+        optSteps.push({t:`${axisLabel} additional moment (slender)`, f:'Madd = Pu·dim[m]/2000·(le/dim)² — no ductility reduction applied (k=1, conservative; Cl 39.7.1.1 permits an optional reduction not used here)',
+          r:`Madd=${round(dist.Madd,2)}kNm → Mdesign=${round(dist.Mdesign,2)}kNm (${dist.governing})`, c:'Cl 39.7.1'});
+      }
+      return;
+    }
+    if(!isEc2){
+      if(result.slenderness.isShort){
+        optSteps.push({t:`${axisLabel} design moment (short)`, f:'Mdesign = max(M2, N·emin)', r:`Mdesign = ${round(dist.Mdesign,2)} kNm (${dist.governing})`, c:'Cl 3.8.3.2'});
+      } else {
+        optSteps.push({t:`${axisLabel} additional moment (slender)`, f:'au=βa·K·dim; βa=(1/2000)(le/dim)²; K=(Nuz−N)/(Nuz−Nbal)≤1',
+          r:`Nuz=${round(dist.Nuz,0)}kN, Nbal=${round(dist.Nbal,0)}kN, K=${round(dist.K,3)}, Madd=${round(dist.Madd,2)}kNm`, c:'Cl 3.8.3.1, Eq 32-35'});
+        optSteps.push({t:`${axisLabel} design moment (slender)`, f:'Mdesign = max(M2, Mi+Madd, M1+Madd/2, N·emin)', r:`Mi=${round(dist.Mi,2)}kNm → Mdesign=${round(dist.Mdesign,2)}kNm (${dist.governing})`, c:'Cl 3.8.3.3'});
+      }
+      return;
+    }
+    // EC2
+    optSteps.push({t:`${axisLabel} end moments`, f:'M02=M2+ei·N, M01=M1±+ei·N', r:`M01=${dist.M01}kNm, M02=${dist.M02}kNm, λ=${round(dist.lambda,1)}, λlim=${dist.lambdaLim}`, c:'Cl 5.2(7), 5.8.3.1'});
+    if(dist.isShortAxis){
+      optSteps.push({t:`${axisLabel} design moment (short, λ≤λlim)`, f:'MEd = max(M02, N·e0)', r:`MEd = ${round(dist.Mdesign,2)} kNm (${dist.governing})`, c:'Cl 5.8.3.1, 6.1(4)'});
+    } else {
+      optSteps.push({t:`${axisLabel} second-order moment (slender, λ>λlim)`, f:'M2=N·e2; e2=(1/r)l0²/c; 1/r=Kr·Kφ/r0; 1/r0=εyd/(0.45d)',
+        r:`Kr=${dist.Kr}, Kφ=${dist.Kphi}, e2=${dist.e2}mm → M2=${round(dist.M2add,2)}kNm`, c:'Cl 5.8.8.2, 5.8.8.3'});
+      optSteps.push({t:`${axisLabel} design moment (slender)`, f:'MEd = max(M02, M0e+M2, M01+0.5M2, N·e0); M0e=max(0.6M02+0.4M01, 0.4M02)',
+        r:`MEd = ${round(dist.Mdesign,2)} kNm (${dist.governing})`, c:'Cl 5.8.8.2 (PD 6687 braced-column formulation)'});
+    }
+  }
+  pushAxisSteps(opt.distX,'X-X'); pushAxisSteps(opt.distY,'Y-Y');
+  if(opt.biax.method==='table322'){
+    optSteps.push({t:'Biaxial combination (rectangular)', f:"Compare Mx/h' vs My/b'; convert to equivalent uniaxial moment via Table 3.22 β",
+      r:`N/(bhfcu)=${opt.biax.Nr}, β=${opt.biax.beta} → governing ${opt.biax.governingAxis.toUpperCase()}-${opt.biax.governingAxis.toUpperCase()}, M'=${opt.biax.Meq}kNm vs Mcap=${opt.biax.Mcap}kNm`, c:'Cl 3.8.4.5, Table 3.22'});
+  } else if(opt.biax.method==='resultant'){
+    optSteps.push({t:'Biaxial combination (circular — axisymmetric)', f:'Mres = √(Mx²+My²), checked against the (direction-independent) interaction curve',
+      r:`Mres=${opt.biax.Meq}kNm vs Mcap=${opt.biax.Mcap}kNm`, c:'Basic mechanics — no direction-dependence for an axisymmetric section, so no BS 8110 clause citation is needed here'});
+  } else if(opt.biax.method==='ec2-5.8.9' || opt.biax.method==='ec2-5.8.9-circular'){
+    optSteps.push({t:'Biaxial combination (Cl 5.8.9)', f:`(MEdz/MRdz)^a + (MEdy/MRdy)^a ≤ 1; a=2 (circular) or interpolated 1.0→2.0 for NEd/NRd=0.1→0.7 (rectangular)`,
+      r:`NEd/NRd=${opt.biax.nRatio} (NRd=${opt.biax.NRd}kN), a=${opt.biax.a} → MRdz=${opt.biax.McapX0}kNm, MRdy=${opt.biax.McapY0}kNm, utilization=${round(opt.biax.utilization,3)}`, c:'Cl 5.8.9(4)'});
+  } else if(opt.biax.method==='bresler-reciprocal'){
+    optSteps.push({t:'Biaxial combination (Bresler reciprocal load)', f:'1/φPn,biaxial = 1/φPnx + 1/φPny − 1/φPo (φPnx,φPny at the actual load eccentricities ex=Mux/Pu, ey=Muy/Pu)',
+      r:`φPnx=${opt.biax.phiPnx}kN, φPny=${opt.biax.phiPny}kN, φPo=${opt.biax.phiPo}kN → φPn,biaxial=${opt.biax.phiPnBiaxial}kN, Pu/φPn,biaxial=${round(opt.biax.utilization,3)}`,
+      c: 'Industry-standard ACI practice (not a single normative code equation) — valid for Pu≳0.1φPo; see note above if flagged.'});
+  } else if(opt.biax.method==='is456-39.6'){
+    optSteps.push({t:'Biaxial combination (Cl 39.6)', f:'(Mux/Mux1)^αn + (Muy/Muy1)^αn ≤ 1; αn interpolated 1.0→2.0 for Pu/Puz=0.2→0.8; Puz=0.45fck·Ac+0.75fy·Asc',
+      r:`Pu/Puz=${opt.biax.ratioPuz} (Puz=${opt.biax.Puz}kN), αn=${opt.biax.alphaN} → Mux1=${opt.biax.McapX0}kNm, Muy1=${opt.biax.McapY0}kNm, utilization=${round(opt.biax.utilization,3)}`, c:'Cl 39.6 — applies to all section shapes, no branching needed'});
+  } else {
+    optSteps.push({t:'Biaxial combination (Bresler load contour)', f:`(Mx/Mcapx)^${opt.biax.a||BRESLER_ALPHA} + (My/Mcapy)^${opt.biax.a||BRESLER_ALPHA} ≤ 1`,
+      r:`Mcapx=${opt.biax.McapX0}kNm, Mcapy=${opt.biax.McapY0}kNm → utilization=${round(opt.biax.utilization,3)}`, c: isEc2 ? 'Not covered by EC2 Cl 5.8.9 for this shape — standard generalised method (see note above)' : 'Not a BS 8110 clause — standard generalised method for irregular sections (see note above)'});
+  }
+  optSteps.push({t:'Section capacity method', f: isEc2
+      ? 'Strain-compatibility N-M curve: general polygon clipped per EC2 rectangular stress block (η·fcd, depth λ·x), real bar coordinates, fyd steel'
+      : isAci
+      ? "Strain-compatibility N-M curve: general polygon clipped per ACI Whitney stress block (0.85f'c, depth β1·c, εcu=0.003), real bar coordinates, fy steel — with φ (strength reduction) applied per point based on the actual net tensile strain at the extreme bar, so this is the φPn/φMn *design* curve, not the nominal one"
+      : isIs456
+      ? "Strain-compatibility N-M curve: general polygon clipped per an equivalent rectangular block, force- and centroid-matched to IS 456's actual parabolic-rectangular stress-strain relationship (0.36fck·b·xu at 0.42xu), real bar coordinates, 0.87fy steel"
+      : 'Strain-compatibility N-M curve: general polygon clipped per BS 8110 rectangular stress block (0.45fcu, depth 0.9x), real bar coordinates, 0.87fy steel',
+    r:'Curve computed for both compression-face directions; the lower (conservative) envelope is used for asymmetric sections.', c: isEc2 ? 'Cl 3.1.7' : isAci ? 'Cl 22.2, Table 22.2.2.4.3, Table 21.2.2' : isIs456 ? 'Cl 38.1, Fig 21' : 'Cl 3.4.4.1'});
+
+  const allSteps = [...result.steps, ...optSteps];
+  html += `<details class="calc-sheet" open><summary>Full Calculation Sheet</summary><div class="content">`;
+  allSteps.forEach(s=>{ html += `<div class="step"><div class="step-title">${s.t}</div><div class="step-formula">${s.f}</div><div class="step-result">${s.r}</div><div class="step-clause">${s.c}</div></div>`; });
+  html += `</div></details>`;
+
+  const perimApprox = 2*(input.dims.b!==undefined ? (input.dims.b-2*input.cover)+(input.dims.h-2*input.cover) : Math.sqrt(result.geometry.Ac))/1000;
+  const linkCount = Math.max(2, Math.ceil((input.Lo*1000)/result.linkDetailing.linkSpacingMax)+1);
+  const linkMass = round(linkCount*Math.max(perimApprox,0.4)*(UNIT_MASS[input.linkDia]||0),1);
+  const longSteelMass = round(opt.n*input.Lo*(UNIT_MASS[opt.dia]||0),1);
+  const concreteVol = round(result.geometry.Ac*input.Lo/1e6,3);
+  const axialRefLabel = isEc2 ? 'Squash load reference, NRd=Ac·fcd+Asc·fyd' : isAci ? "φPn,max=0.65×0.80×[0.85f'c(Ag−Ast)+fy·Ast]" : isIs456 ? 'Pure axial capacity reference, Pu=0.4fckAc+0.67fyAsc' : 'Pure axial capacity reference, N=0.4fcuAc+0.8fyAsc';
+  html += `<table class="check-table"><thead><tr><th>Quantities (per column length, ${input.Lo} m)</th><th>Value</th></tr></thead><tbody>
+    <tr><td>Longitudinal steel — ${opt.n}T${opt.dia}</td><td class="num">${longSteelMass} kg</td></tr>
+    <tr><td>Links — T${input.linkDia} @ ${result.linkDetailing.linkSpacingMax} mm c/c (${linkCount} nos., approx.)</td><td class="num">${linkMass} kg</td></tr>
+    <tr><td>Concrete volume</td><td class="num">${concreteVol} m³</td></tr>
+    <tr><td>${axialRefLabel}</td><td class="num">${result.pureAxialCapacity(opt.AscTotal)} kN</td></tr>
+  </tbody></table>
+  <div class="note">Steel weight excludes laps, starter bars and wastage — add per project QS convention. Link geometry for non-rectangular sections is approximated for quantity purposes only.</div>`;
+
+  html += `<div class="footer-note">All formulas per ${standardLabel}. This tool assists design; the responsible engineer must verify and approve all outputs.</div>`;
+  body.innerHTML = html;
+
+  if(typeof bubble_fn_result==='function'){
+    try{ bubble_fn_result(JSON.stringify({ input, standard:result.standard, shape:result.shape, selectedOption: opt.dia+'T'+opt.n, status: opt.status })); }catch(e){}
+  }
+}
+
+document.getElementById('calcBtn').addEventListener('click', ()=>{
+  const input = getInputs();
+  const errors = validateInputs(input);
+  if(errors.length){
+    document.getElementById('resultsBody').innerHTML = `<div class="error-panel"><div class="title">Please fix the following before calculating</div><ul>${errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
+    return;
+  }
+  const result = engines[input.standard].calculate(input);
+  currentOptIndex = result.selectedIndex>=0?result.selectedIndex:0;
+  renderAll(input, result);
+});
+</script>
+</body>
+</html>
